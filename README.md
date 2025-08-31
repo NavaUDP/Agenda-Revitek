@@ -1,6 +1,16 @@
 ﻿# Agenda-Revitek
 
 hay que agregar un .gitignore con node_modules y serverenv
+
+Cómo mapea esto tus historias y endpoints
+
+Landing “/”: client/pages/Home.jsx con DecisionTreeWidget embebido.
+Agenda “/reservas”: flujo PasoSeleccion → Confirmacion usando TimeSlotGrid, SelectProfesional y SelectServicios; bloqueo en server/apps/agenda/services.py.
+Recordatorios “/recordatorio”: client/pages/Recordatorio/index.jsx consume /api/recordatorios/ (programación/envío inmediato); backend en notificaciones/ con WhatsApp Business.
+Admin: CRUD y asignaciones en client/pages/Admin/* (profesionales, servicios, asignaciones, calendario admin con reservas multi-profesional).
+Estados: client/pages/Estado/* para que el cliente consulte progreso; backend apps/estados/.
+Chatbot binario: editor en Admin/ChatbotBuilder.jsx; motor y persistencia en apps/chatbot/.
+
 tree del proyecto:
 
 ├── client/                                  # Frontend: Vite + React + React Router
@@ -170,3 +180,4 @@ tree del proyecto:
     └── scripts/
         ├── seed_demo_data.py                 # crea profesionales/servicios de ejemplo
         └── crontab.example                   # alternativa a Celery Beat (si aplica)
+
