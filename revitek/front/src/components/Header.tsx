@@ -2,10 +2,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X, ChevronDown } from "lucide-react";
 import revitekLogo from "@/assets/revitek-logo.jpg";
+import { Link } from "react-router-dom"; // NUEVO: Importamos Link para la navegación
+import { useAuth } from "@/hooks/useAuth"; // NUEVO: Importamos nuestro hook de autenticación
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isServicesOpen, setIsServicesOpen] = useState(false);
+  const { isAdmin, logout } = useAuth(); // NUEVO: Obtenemos el estado y funciones del contexto
 
   const services = [
     "SERVICIOS PRT",
@@ -24,18 +27,21 @@ const Header = () => {
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <img 
-              src={revitekLogo} 
-              alt="REVITEK SERVICIOS AUTOMOTRIZ" 
-              className="h-12 w-auto object-contain"
-            />
+            {/* NUEVO: El logo ahora es un Link a la página de inicio */}
+            <Link to="/">
+              <img 
+                src={revitekLogo} 
+                alt="REVITEK SERVICIOS AUTOMOTRIZ" 
+                className="h-12 w-auto object-contain"
+              />
+            </Link>
           </div>
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-8">
-            <a href="#inicio" className="text-foreground hover:text-primary transition-colors font-medium">
+            <Link to="/" className="text-foreground hover:text-primary transition-colors font-medium">
               INICIO
-            </a>
+            </Link>
             
             <div className="relative group">
               <button 
@@ -81,6 +87,22 @@ const Header = () => {
             <a href="#contacto" className="text-foreground hover:text-primary transition-colors font-medium">
               CONTACTO
             </a>
+
+            {/* NUEVO: Lógica condicional para Admin */}
+            {isAdmin ? (
+              <>
+                <Link to="/admin" className="font-semibold text-primary hover:text-primary/80 transition-colors">
+                  DASHBOARD
+                </Link>
+                <Button variant="outline" size="sm" onClick={logout}>
+                  CERRAR SESIÓN
+                </Button>
+              </>
+            ) : (
+              <Link to="/login" className="text-foreground hover:text-primary transition-colors font-medium">
+                LOGIN
+              </Link>
+            )}
 
             <Button 
               variant="default" 

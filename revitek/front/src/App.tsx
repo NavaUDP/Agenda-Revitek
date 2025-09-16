@@ -1,27 +1,41 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
-const queryClient = new QueryClient();
+// Importación de Layouts y Páginas
+import PublicLayout from './layouts/PublicLayout'; // <-- NUEVO
+import LandingPage from './pages/LandingPage';
+import LoginPage from './pages/LoginPage';
+import AdminDashboard from './pages/AdminDashboard';
+import ProtectedRoute from './routes/ProtectedRoute';
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* --- GRUPO DE RUTAS PÚBLICAS --- */}
+        {/* Todas las rutas anidadas aquí usarán el diseño de PublicLayout */}
+        <Route element={<PublicLayout />}>
+          <Route path="/" element={<LandingPage />} />
+          {/* Si tuvieras otras páginas públicas como /nosotros o /servicios, irían aquí */}
+          {/* <Route path="/nosotros" element={<AboutPage />} /> */}
+        </Route>
+
+        {/* --- RUTAS INDEPENDIENTES --- */}
+        {/* Estas rutas no usan el PublicLayout (no tienen Header ni Footer) */}
+        <Route path="/login" element={<LoginPage />} />
+
+        <Route 
+          path="/admin" 
+          element={
+            <ProtectedRoute>
+              {/* Esta ruta está protegida y tampoco usa el layout público.
+                  Podríamos crear un "AdminLayout" si quisiéramos una barra lateral, etc. */}
+              <AdminDashboard />
+            </ProtectedRoute>
+          } 
+        />
+      </Routes>
+    </BrowserRouter>
+  );
+}
 
 export default App;
