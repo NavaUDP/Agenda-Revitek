@@ -5,7 +5,6 @@ class Servicio(models.Model):
     nombre = models.CharField(max_length=120, unique=True)
     categoria = models.CharField(max_length=120, blank=True, default="")
     duracion_min = models.PositiveIntegerField(default=60)
-    precio_base = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     activo = models.BooleanField(default=True)
 
     class Meta:
@@ -18,7 +17,6 @@ class ProfesionalServicio(models.Model):
     profesional = models.ForeignKey(Profesional, on_delete=models.CASCADE, related_name="servicios")
     servicio = models.ForeignKey(Servicio, on_delete=models.CASCADE, related_name="profesionales")
     duracion_override_min = models.PositiveIntegerField(null=True, blank=True)
-    precio_override = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     activo = models.BooleanField(default=True)
 
     class Meta:

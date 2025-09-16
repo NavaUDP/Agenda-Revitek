@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, time, date
+from datetime import datetime, timedelta
 from django.core.management.base import BaseCommand, CommandParser
 from django.utils.timezone import make_aware
 from apps.profesionales.models import Profesional
@@ -11,8 +11,8 @@ class Command(BaseCommand):
         p.add_argument("--profesional-id", type=int, help="ID de un profesional (omitir para todos)")
         p.add_argument("--desde", required=True, help="YYYY-MM-DD")
         p.add_argument("--hasta", required=True, help="YYYY-MM-DD (incluida)")
-        p.add_argument("--inicio", default="09:00", help="HH:MM (ej: 09:00)")
-        p.add_argument("--fin", default="19:00", help="HH:MM (ej: 19:00)")
+        p.add_argument("--inicio", default="09:00", help="HH:MM")
+        p.add_argument("--fin", default="19:00", help="HH:MM")
         p.add_argument("--step", type=int, default=15, help="minutos por slot (default 15)")
 
     def handle(self, *args, **o):
@@ -22,16 +22,16 @@ class Command(BaseCommand):
 
         d0 = datetime.strptime(o["desde"], "%Y-%m-%d").date()
         d1 = datetime.strptime(o["hasta"], "%Y-%m-%d").date()
-        t0 = datetime.strptime(o["inicio"], "%H:%M").time()
-        t1 = datetime.strptime(o["fin"], "%H:%M").time()
+        t0_h, t0_m = map(int, o["inicio"].split(":"))
+        t1_h, t1_m = map(int, o["fin"].split(":"))
         step = timedelta(minutes=int(o["step"]))
 
         created = 0
         for prof in prof_qs:
             cur = d0
             while cur <= d1:
-                start_dt = datetime.combine(cur, t0)
-                end_of_day = datetime.combine(cur, t1)
+                start_dt = datetime(cur.year, cur.month, cur.day, t0_h, t0_m)
+                end_of_day = datetime(cur.year, cur.month, cur.day, t1_h, t1_m)
                 while start_dt < end_of_day:
                     fin_dt = start_dt + step
                     aware_start = make_aware(start_dt)

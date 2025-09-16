@@ -1,9 +1,8 @@
 from rest_framework import serializers
-from apps.agenda.models import Reserva, HistorialEstado
+from apps.agenda.models import Reserva
 
 class EstadoDetalleSerializer(serializers.ModelSerializer):
     historial = serializers.SerializerMethodField()
-
     class Meta:
         model = Reserva
         fields = ["id","estado","created_at","historial"]

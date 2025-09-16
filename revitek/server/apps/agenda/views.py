@@ -1,4 +1,3 @@
-from datetime import datetime
 from django.utils.dateparse import parse_date
 from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveAPIView
 from rest_framework.exceptions import ValidationError
@@ -7,7 +6,6 @@ from .serializers import SlotSerializer, ReservaCreateSerializer, ReservaDetailS
 
 class SlotsPorDiaView(ListAPIView):
     serializer_class = SlotSerializer
-
     def get_queryset(self):
         profesional_id = self.request.query_params.get("profesional_id")
         fecha_str = self.request.query_params.get("fecha")

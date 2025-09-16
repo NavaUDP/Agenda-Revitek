@@ -25,8 +25,6 @@ class ReservaCreateSerializer(serializers.Serializer):
     def create(self, validated):
         from django.db import transaction
         from django.shortcuts import get_object_or_404
-        from apps.profesionales.models import Profesional
-        from apps.catalogo.models import Servicio
 
         with transaction.atomic():
             # cliente opcional (upsert por email si viene)
@@ -56,33 +54,29 @@ class ReservaCreateSerializer(serializers.Serializer):
             slot.estado = "RESERVADO"
             slot.save(update_fields=["estado"])
 
-            # servicios con overrides
-            total_min, total_precio = 0, 0
+            # servicios con duraciones (overrides)
+            total_min = 0
             for s in validated["servicios"]:
                 ps = ProfesionalServicio.objects.select_related("servicio").get(
                     profesional_id=s["profesional_id"], servicio_id=s["servicio_id"], activo=True
                 )
                 dur = ps.duracion_override_min or ps.servicio.duracion_min
-                precio = ps.precio_override if ps.precio_override is not None else ps.servicio.precio_base
                 ReservaServicio.objects.create(
                     reserva=reserva, servicio_id=s["servicio_id"], profesional_id=s["profesional_id"],
-                    duracion_min_eff=dur, precio_eff=precio
+                    duracion_min_eff=dur
                 )
                 total_min += dur
-                total_precio += float(precio)
 
             reserva.total_min = total_min
-            reserva.total_precio = total_precio
-            reserva.save(update_fields=["total_min","total_precio"])
+            reserva.save(update_fields=["total_min"])
 
             HistorialEstado.objects.create(reserva=reserva, estado="RESERVADO", nota="Creación")
-
             return reserva
 
 class ReservaDetailServicioSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReservaServicio
-        fields = ["servicio_id","profesional_id","duracion_min_eff","precio_eff"]
+        fields = ["servicio_id","profesional_id","duracion_min_eff"]
 
 class ReservaDetailSerializer(serializers.ModelSerializer):
     servicios = ReservaDetailServicioSerializer(many=True)
@@ -90,8 +84,8 @@ class ReservaDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Reserva
-        fields = ["id","estado","total_min","total_precio","titular_nombre","titular_email","titular_tel","nota",
-                  "created_at","servicios","reservaslot"]
+        fields = ["id","estado","total_min","titular_nombre","titular_email","titular_tel",
+                  "nota","created_at","servicios","reservaslot"]
 
     def get_reservaslot(self, obj):
         rs = obj.reservaslot.first()

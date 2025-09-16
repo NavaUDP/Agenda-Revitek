@@ -23,7 +23,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True  # endurecer en prod
+CORS_ALLOW_ALL_ORIGINS = True
 TIME_ZONE = "America/Santiago"
 USE_TZ = True
 

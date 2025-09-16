@@ -7,10 +7,7 @@ const http = axios.create({
 
 http.interceptors.response.use(
   (r) => r,
-  (e) => {
-    console.error("API error:", e?.response?.data || e.message);
-    return Promise.reject(e);
-  }
+  (e) => { console.error("API error:", e?.response?.data || e.message); return Promise.reject(e); }
 );
 
 export default http;
