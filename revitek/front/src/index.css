@@ -39,6 +39,25 @@ All colors MUST be HSL.
 
     --radius: 0.75rem;
 
+    /* --- Colores Generales --- */
+  --fc-border-color: hsl(214 22% 17%);  /* Color del borde de las celdas */
+  --fc-daygrid-day-bg-color: transparent; /* Fondo de los días en vista de mes */
+  --fc-list-even-row-bg-color: hsl(222 47% 11%); /* Fondo de filas en la vista de lista */
+  
+  /* --- Botones de la Barra Superior --- */
+  --fc-button-bg-color: hsl(217 33% 17%); /* Fondo de los botones */
+  --fc-button-text-color: hsl(210 40% 98%); /* Color del texto */
+  --fc-button-border-color: hsl(217 33% 22%);
+  --fc-button-hover-bg-color: hsl(217 33% 25%);
+  --fc-button-active-bg-color: hsl(217 33% 28%);
+  
+  /* --- Botón "today" --- */
+  --fc-today-bg-color: hsla(262, 83%, 58%, 0.15); /* Fondo para el día de hoy */
+  
+  /* --- Fuentes --- */
+  --fc-font-family: inherit; /* Usa la misma fuente que el resto de tu app */
+  --fc-event-font-size: 0.8em;
+
     /* Custom Revitek Variables */
     --revitek-yellow: 51 100% 50%;
     --revitek-black: 0 0% 5%;
