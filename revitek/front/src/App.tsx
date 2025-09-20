@@ -6,6 +6,7 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import AdminDashboard from './pages/AdminDashboard';
 import ProtectedRoute from './routes/ProtectedRoute';
+import ClientBookingPage from './pages/ClientBookingPage';
 
 function App() {
   return (
@@ -18,6 +19,9 @@ function App() {
           {/* Si tuvieras otras páginas públicas como /nosotros o /servicios, irían aquí */}
           {/* <Route path="/nosotros" element={<AboutPage />} /> */}
         </Route>
+
+        {/* --- NUEVA RUTA DE AGENDAMIENTO PARA CLIENTES --- */}
+        <Route path="/agendar" element={<ClientBookingPage />} />
 
         {/* --- RUTAS INDEPENDIENTES --- */}
         {/* Estas rutas no usan el PublicLayout (no tienen Header ni Footer) */}

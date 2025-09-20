@@ -8,7 +8,6 @@ import { useAuth } from "@/hooks/useAuth"; // NUEVO: Importamos nuestro hook de 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isServicesOpen, setIsServicesOpen] = useState(false);
-  const { isAdmin, logout } = useAuth(); // NUEVO: Obtenemos el estado y funciones del contexto
 
   const services = [
     "SERVICIOS PRT",
@@ -87,22 +86,6 @@ const Header = () => {
             <a href="#contacto" className="text-foreground hover:text-primary transition-colors font-medium">
               CONTACTO
             </a>
-
-            {/* NUEVO: Lógica condicional para Admin */}
-            {isAdmin ? (
-              <>
-                <Link to="/admin" className="font-semibold text-primary hover:text-primary/80 transition-colors">
-                  DASHBOARD
-                </Link>
-                <Button variant="outline" size="sm" onClick={logout}>
-                  CERRAR SESIÓN
-                </Button>
-              </>
-            ) : (
-              <Link to="/login" className="text-foreground hover:text-primary transition-colors font-medium">
-                LOGIN
-              </Link>
-            )}
 
             <Button 
               variant="default" 

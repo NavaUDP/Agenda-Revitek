@@ -2,10 +2,10 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
-    const { isAdmin } = useAuth();
+    const { user } = useAuth();
 
-    if(!isAdmin) {
-        return <Navigate to="/login" />
+    if(!user || user.role !== 'admin'){
+        return <Navigate to="/login" />;
     }
 
     return children;
