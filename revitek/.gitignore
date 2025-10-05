@@ -1,0 +1,27 @@
+# Node
+client/node_modules/
+client/.vite/
+
+# Python / Django
+serverenv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.log
+
+# Entornos
+.env
+*.env
+
+# Django media/static generados
+server/static/
+server/media/
+
+# IDEs / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
