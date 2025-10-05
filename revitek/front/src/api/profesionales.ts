@@ -1,6 +1,9 @@
 import http from "./http";
-
 export async function listProfesionales() {
   const { data } = await http.get("/api/profesionales/");
   return data as Array<{ id:number; nombre:string }>;
+}
+export async function getProfesional(id:number){
+  const { data } = await http.get(`/api/profesionales/${id}`);
+  return data;
 }

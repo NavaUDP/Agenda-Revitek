@@ -39,6 +39,27 @@ All colors MUST be HSL.
 
     --radius: 0.75rem;
 
+    --fc-font-family: inherit;
+
+    /* --- Colores Generales --- */
+    --fc-border-color: hsl(214 22% 17%);  /* Color del borde de las celdas */
+    --fc-daygrid-day-bg-color: transparent; /* Fondo de los días en vista de mes */
+    --fc-list-even-row-bg-color: hsl(222 47% 11%); /* Fondo de filas en la vista de lista */
+    
+    /* --- BOTONES DE LA BARRA SUPERIOR (Hoy, Mes, Semana, Día, etc.) --- */
+    --fc-button-text-color: hsl(var(--foreground));
+    --fc-button-bg-color: hsl(var(--card));
+    --fc-button-border-color: hsl(var(--border));
+    --fc-button-hover-bg-color: hsl(var(--muted));
+    --fc-button-active-bg-color: hsl(var(--accent));
+    
+    /* --- Botón "today" --- */
+    --fc-today-bg-color: hsla(262, 83%, 58%, 0.15); /* Fondo para el día de hoy */
+    
+    /* --- Fuentes --- */
+    --fc-font-family: inherit; /* Usa la misma fuente que el resto de tu app */
+    --fc-event-font-size: 0.8em;
+
     /* Custom Revitek Variables */
     --revitek-yellow: 51 100% 50%;
     --revitek-black: 0 0% 5%;
@@ -72,6 +93,24 @@ All colors MUST be HSL.
     --sidebar-border: 220 13% 91%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* --- BOTÓN ACTIVO (La vista seleccionada, ej: "Día") --- */
+    /* Usaremos el color primario para el botón activo */
+    .fc .fc-button-primary:not(:disabled).fc-button-active {
+      background-color: hsl(var(--primary));
+      color: hsl(var(--primary-foreground));
+    }
+  
+  
+    /* --- COLORES DE FONDO Y BORDES DEL CALENDARIO --- */
+    /* Color de los bordes entre días y horas */
+    --fc-border-color: hsl(var(--border));
+  
+    /* Color de fondo de las ranuras de tiempo (donde se ponen las citas) */
+    --fc-timegrid-slot-lane-bg-color: hsl(var(--card));
+  
+    /* Color de fondo para el día de "hoy" */
+    --fc-today-bg-color: hsla(var(--primary), 0.05); /* Un color primario muy transparente */
   }
 
   /* Light mode adjustments for Revitek (optional) */
@@ -100,6 +139,20 @@ All colors MUST be HSL.
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+}
+
+.sidebar-calendar {
+  /* Arregla el color del texto de los encabezados de día (Lun, Mar, etc.) */
+  --fc-col-header-cell-cushion-color: hsl(var(--muted-foreground));
+
+  /* Reduce el tamaño de la fuente de los números de los días */
+  --fc-daygrid-day-number-font-size: 0.75rem; /* 12px */
+
+  /* Reduce el tamaño de la fuente del título (ej. "Septiembre 2025") */
+  --fc-toolbar-title-font-size: 1rem; /* 16px */
+
+  /* Ajusta el tamaño de los botones de navegación */
+  --fc-button-padding: 0.25rem 0.5rem;
 }
 
 @layer base {

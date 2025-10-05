@@ -31,7 +31,6 @@ class Reserva(models.Model):
     titular_tel = models.CharField(max_length=32, blank=True, default="")
     estado = models.CharField(max_length=16, choices=ESTADOS, default="RESERVADO", db_index=True)
     total_min = models.PositiveIntegerField(default=0)
-    total_precio = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     nota = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -48,7 +47,6 @@ class ReservaServicio(models.Model):
     servicio = models.ForeignKey(Servicio, on_delete=models.PROTECT)
     profesional = models.ForeignKey(Profesional, on_delete=models.PROTECT)
     duracion_min_eff = models.PositiveIntegerField()
-    precio_eff = models.DecimalField(max_digits=10, decimal_places=2)
 
 class HistorialEstado(models.Model):
     reserva = models.ForeignKey(Reserva, on_delete=models.CASCADE, related_name="historial")

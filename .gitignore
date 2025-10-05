@@ -1,0 +1,71 @@
+# --- OS / editores ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.code-workspace
+
+# --- Python / Django ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.coverage*
+htmlcov/
+.tox/
+.venv/
+venv/
+ENV/
+.env
+.env.*
+*.log
+
+# Django collectstatic (si usas collectstatic a una carpeta separada)
+staticfiles/
+static_root/
+
+# Media de usuario (mantén un .gitkeep si quieres la carpeta)
+server/media/**
+!server/media/.gitkeep
+
+# Archivos locales / dumps
+*.sqlite3
+*.db
+*.sql
+*.bak
+
+# --- Frontend (Vite/React/TypeScript) ---
+node_modules/
+dist/
+build/
+.coverage/
+.npm/
+.pnpm-store/
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+*.tsbuildinfo
+
+# Vite/ESLint caches
+.vite/
+.eslintcache/
+
+# --- Bun ---
+.bun/
+bun.lockb.tmp
+
+# --- Misc dev ---
+.tmp/
+temp/
+.cache/
+coverage/

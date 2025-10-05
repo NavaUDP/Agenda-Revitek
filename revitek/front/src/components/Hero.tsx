@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import heroBg from "@/assets/hero-bg.jpg";
+import { Link } from "react-router-dom";
 
 const Hero = () => {
   return (
@@ -43,9 +44,8 @@ const Hero = () => {
             size="lg"
             variant="secondary"
             className="bg-secondary text-secondary-foreground hover:bg-secondary/90 px-8 py-4 text-lg font-bold rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 animate-glow"
-            onClick={() => window.open('https://revitek.site.agendapro.com/cl', '_blank')}
           >
-            AGENDA TU HORA AQUÍ
+            <Link to="/agendar">AGENDA TU HORA AQUÍ</Link>
           </Button>
         </div>
 
