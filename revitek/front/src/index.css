@@ -1,0 +1,195 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Revitek Design System - Servicios Automotrices
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Revitek Brand Colors */
+    --background: 0 0% 5%;
+    --foreground: 45 100% 98%;
+
+    --card: 0 0% 8%;
+    --card-foreground: 45 100% 98%;
+
+    --popover: 0 0% 8%;
+    --popover-foreground: 45 100% 98%;
+
+    --primary: 51 100% 50%;
+    --primary-foreground: 0 0% 5%;
+
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 45 100% 98%;
+
+    --muted: 0 0% 12%;
+    --muted-foreground: 45 20% 70%;
+
+    --accent: 51 100% 50%;
+    --accent-foreground: 0 0% 5%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 15%;
+    --ring: 51 100% 50%;
+
+    --radius: 0.75rem;
+
+    --fc-font-family: inherit;
+
+    /* --- Colores Generales --- */
+    --fc-border-color: hsl(214 22% 17%);  /* Color del borde de las celdas */
+    --fc-daygrid-day-bg-color: transparent; /* Fondo de los días en vista de mes */
+    --fc-list-even-row-bg-color: hsl(222 47% 11%); /* Fondo de filas en la vista de lista */
+    
+    /* --- BOTONES DE LA BARRA SUPERIOR (Hoy, Mes, Semana, Día, etc.) --- */
+    --fc-button-text-color: hsl(var(--foreground));
+    --fc-button-bg-color: hsl(var(--card));
+    --fc-button-border-color: hsl(var(--border));
+    --fc-button-hover-bg-color: hsl(var(--muted));
+    --fc-button-active-bg-color: hsl(var(--accent));
+    
+    /* --- Botón "today" --- */
+    --fc-today-bg-color: hsla(262, 83%, 58%, 0.15); /* Fondo para el día de hoy */
+    
+    /* --- Fuentes --- */
+    --fc-font-family: inherit; /* Usa la misma fuente que el resto de tu app */
+    --fc-event-font-size: 0.8em;
+
+    /* Custom Revitek Variables */
+    --revitek-yellow: 51 100% 50%;
+    --revitek-black: 0 0% 5%;
+    --revitek-gray: 0 0% 15%;
+    --revitek-light-gray: 0 0% 25%;
+    
+    /* Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(var(--revitek-black)), hsl(0 0% 10%));
+    --gradient-yellow: linear-gradient(135deg, hsl(var(--revitek-yellow)), hsl(45 100% 55%));
+    --gradient-card: linear-gradient(145deg, hsl(var(--revitek-gray)), hsl(var(--revitek-black)));
+    
+    /* Shadows */
+    --shadow-yellow: 0 10px 30px -5px hsl(var(--revitek-yellow) / 0.3);
+    --shadow-card: 0 8px 25px -5px hsl(0 0% 0% / 0.4);
+    
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* --- BOTÓN ACTIVO (La vista seleccionada, ej: "Día") --- */
+    /* Usaremos el color primario para el botón activo */
+    .fc .fc-button-primary:not(:disabled).fc-button-active {
+      background-color: hsl(var(--primary));
+      color: hsl(var(--primary-foreground));
+    }
+  
+  
+    /* --- COLORES DE FONDO Y BORDES DEL CALENDARIO --- */
+    /* Color de los bordes entre días y horas */
+    --fc-border-color: hsl(var(--border));
+  
+    /* Color de fondo de las ranuras de tiempo (donde se ponen las citas) */
+    --fc-timegrid-slot-lane-bg-color: hsl(var(--card));
+  
+    /* Color de fondo para el día de "hoy" */
+    --fc-today-bg-color: hsla(var(--primary), 0.05); /* Un color primario muy transparente */
+  }
+
+  /* Light mode adjustments for Revitek (optional) */
+  .light {
+    --background: 0 0% 98%;
+    --foreground: 0 0% 5%;
+    --card: 0 0% 95%;
+    --card-foreground: 0 0% 5%;
+    --primary: 0 0% 5%;
+    --primary-foreground: 51 100% 50%;
+    --secondary: 0 0% 90%;
+    --secondary-foreground: 0 0% 5%;
+    --muted: 0 0% 85%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 51 100% 50%;
+    --accent-foreground: 0 0% 5%;
+    --border: 0 0% 80%;
+    --input: 0 0% 90%;
+    --ring: 51 100% 50%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+.sidebar-calendar {
+  /* Arregla el color del texto de los encabezados de día (Lun, Mar, etc.) */
+  --fc-col-header-cell-cushion-color: hsl(var(--muted-foreground));
+
+  /* Reduce el tamaño de la fuente de los números de los días */
+  --fc-daygrid-day-number-font-size: 0.75rem; /* 12px */
+
+  /* Reduce el tamaño de la fuente del título (ej. "Septiembre 2025") */
+  --fc-toolbar-title-font-size: 1rem; /* 16px */
+
+  /* Ajusta el tamaño de los botones de navegación */
+  --fc-button-padding: 0.25rem 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+
+  /* Custom Revitek Animations */
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes glow {
+    from {
+      box-shadow: 0 0 20px hsl(var(--revitek-yellow) / 0.2);
+    }
+    to {
+      box-shadow: 0 0 30px hsl(var(--revitek-yellow) / 0.4);
+    }
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.6s ease-out;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
