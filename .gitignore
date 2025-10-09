@@ -69,3 +69,4 @@ bun.lockb.tmp
 temp/
 .cache/
 coverage/
+revitek/serverenv/
