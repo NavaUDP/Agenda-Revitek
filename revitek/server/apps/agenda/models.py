@@ -21,21 +21,35 @@ class Slot(models.Model):
 
 class Reserva(models.Model):
     ESTADOS = [
-        ("RESERVADO","RESERVADO"),("CONFIRMADO","CONFIRMADO"),("ASISTE","ASISTE"),
-        ("NO_ASISTIO","NO_ASISTIO"),("PENDIENTE","PENDIENTE"),("EN_ESPERA","EN_ESPERA"),
-        ("EN_PROGRESO","EN_PROGRESO"),("COMPLETADO","COMPLETADO"),("CANCELADO","CANCELADO"),
+        ("RESERVADO","Reservado"),("CONFIRMADO","Confirmado"),("ASISTE","Asiste"),
+        ("NO_ASISTIO","No Asistió"),("PENDIENTE","Pendiente"),("EN_ESPERA","En Espera"),
+        ("EN_PROGRESO","En Progreso"),("COMPLETADO","Completado"),("CANCELADO","Cancelado"),
     ]
     cliente = models.ForeignKey(Cliente, on_delete=models.SET_NULL, null=True, blank=True)
     titular_nombre = models.CharField(max_length=120, blank=True, default="")
     titular_email = models.EmailField(null=True, blank=True)
     titular_tel = models.CharField(max_length=32, blank=True, default="")
     estado = models.CharField(max_length=16, choices=ESTADOS, default="RESERVADO", db_index=True)
+    cancelled_by = models.CharField(max_length=32, choices=[('admin','Admin'),('client','Client')], null=True, blank=True)
     total_min = models.PositiveIntegerField(default=0)
     nota = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at"]
+class AdminAudit(models.Model):
+    ACTIONS = [
+        ("CREATE", "Create"),
+        ("UPDATE", "Update"),
+        ("DELETE", "Delete"),
+        ("CANCEL", "Cancel"),
+    ]
+    admin_email = models.EmailField()
+    action = models.CharField(max_length=16, choices=ACTIONS)
+    model_name = models.CharField(max_length=64)
+    object_id = models.CharField(max_length=64)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True, default="")
 
 class ReservaSlot(models.Model):
     reserva = models.ForeignKey(Reserva, on_delete=models.CASCADE, related_name="reservaslot")

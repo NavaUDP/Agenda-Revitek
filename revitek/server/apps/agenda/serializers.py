@@ -95,3 +95,21 @@ class HistorialSerializer(serializers.ModelSerializer):
     class Meta:
         model = HistorialEstado
         fields = ["estado","timestamp","nota"]
+
+class AdminAuditSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AdminAudit
+        fields = '__all__'
+
+class ReservaDetailSerializer(serializers.ModelSerializer):
+    servicios = ReservaDetailServicioSerializer(many=True)
+    reservaslot = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Reserva
+        fields = ["id","estado","total_min","titular_nombre","titular_email","titular_tel",
+                  "nota","created_at","servicios","reservaslot","cancelled_by"]
+
+    def get_reservaslot(self, obj):
+        rs = obj.reservaslot.first()
+        return {"slot_id": rs.slot_id, "profesional_id": rs.profesional_id} if rs else None
