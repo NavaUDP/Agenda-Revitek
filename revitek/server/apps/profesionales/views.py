@@ -1,11 +1,3 @@
-from rest_framework.generics import ListAPIView, RetrieveUpdateAPIView
-from .models import Profesional
-from .serializers import ProfesionalSerializer
+from django.shortcuts import render
 
-class ProfesionalListView(ListAPIView):
-    queryset = Profesional.objects.filter(activo=True).order_by("nombre")
-    serializer_class = ProfesionalSerializer
-
-class ProfesionalDetailView(RetrieveUpdateAPIView):
-    queryset = Profesional.objects.all()
-    serializer_class = ProfesionalSerializer
+# Create your views here.
