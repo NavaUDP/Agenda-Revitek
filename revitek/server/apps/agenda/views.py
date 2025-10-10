@@ -5,6 +5,8 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from .models import Slot, Reserva
 from .serializers import SlotSerializer, ReservaCreateSerializer, ReservaDetailSerializer
+from .services import generate_daily_slots_for_profesional, cancel_reserva, get_available_slots
+from rest_framework.permissions import IsAdminUser
 
 
 @api_view(["GET"])
@@ -33,4 +35,27 @@ class ReservaViewSet(viewsets.ViewSet):
 		reserva = get_object_or_404(Reserva, pk=pk)
 		serializer = ReservaDetailSerializer(reserva)
 		return Response(serializer.data)
+
+
+@api_view(["POST"])
+def generate_slots(request):
+	# admin-only in production; kept simple here
+	profesional_id = request.data.get('profesional_id')
+	fecha = request.data.get('fecha')
+	if not profesional_id or not fecha:
+		return Response({'detail': 'profesional_id and fecha required'}, status=400)
+	from datetime import datetime
+	fecha_parsed = datetime.fromisoformat(fecha).date()
+	slots = generate_daily_slots_for_profesional(profesional_id, fecha_parsed)
+	return Response(SlotSerializer(slots, many=True).data)
+
+
+@api_view(["POST"])
+def cancel_reserva_view(request, pk=None):
+	# accept path param pk or payload reserva_id
+	reserva_id = pk or request.data.get('reserva_id')
+	if not reserva_id:
+		return Response({'detail': 'reserva_id required'}, status=400)
+	reserva = cancel_reserva(reserva_id, cancelled_by=request.data.get('by','admin'))
+	return Response({'id': reserva.id, 'estado': reserva.estado})
 

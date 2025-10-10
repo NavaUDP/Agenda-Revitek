@@ -42,3 +42,25 @@ class AgendaApiTests(TestCase):
 		self.assertEqual(resp.status_code, 201)
 		data = resp.json()
 		self.assertIn('id', data)
+
+	def test_create_reserva_exceeds_slot(self):
+		# create another servicio with long duration and assign to profesional
+		serv2 = Servicio.objects.create(nombre="Servicio Largo", duracion_min=90)
+		ProfesionalServicio.objects.create(profesional=self.pro, servicio=serv2, duracion_override_min=None)
+		slots = self.client.get('/api/agenda/slots', {'profesional_id': self.pro.id, 'fecha': str(date.today() + timedelta(days=1))}).json()
+		slot_id = slots[0]['id']
+		payload = {
+			'cliente': {'nombre': 'Cliente Test', 'email': 'cliente2@test.com', 'telefono': '1234'},
+			'titular_nombre': 'Cliente Test',
+			'titular_email': 'cliente2@test.com',
+			'titular_tel': '1234',
+			'profesional_id': self.pro.id,
+			'servicios': [
+				{'servicio_id': self.serv.id, 'profesional_id': self.pro.id},
+				{'servicio_id': serv2.id, 'profesional_id': self.pro.id},
+			],
+			'slot_id': slot_id,
+			'nota': 'Prueba exceso'
+		}
+		resp = self.client.post('/api/agenda/reservas/', payload, format='json')
+		self.assertEqual(resp.status_code, 400)
