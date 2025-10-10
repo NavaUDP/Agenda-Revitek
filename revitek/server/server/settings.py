@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
@@ -87,17 +88,26 @@ WSGI_APPLICATION = 'server.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 # BASE_DIR = carpeta 'server'
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": os.getenv("MYSQL_DB","revitek"),
-        "USER": os.getenv("MYSQL_USER","revitek"),
-        "PASSWORD": os.getenv("MYSQL_PASSWORD",""),
-        "HOST": os.getenv("MYSQL_HOST","127.0.0.1"),
-        "PORT": os.getenv("MYSQL_PORT","3306"),
-        "OPTIONS": {"charset": "utf8mb4", "init_command": "SET sql_mode='STRICT_TRANS_TABLES'"},
+# Use MySQL by default, but when running tests use in-memory SQLite to avoid requiring a DB server.
+if 'test' in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": os.getenv("MYSQL_DB","revitek"),
+            "USER": os.getenv("MYSQL_USER","revitek"),
+            "PASSWORD": os.getenv("MYSQL_PASSWORD",""),
+            "HOST": os.getenv("MYSQL_HOST","127.0.0.1"),
+            "PORT": os.getenv("MYSQL_PORT","3306"),
+            "OPTIONS": {"charset": "utf8mb4", "init_command": "SET sql_mode='STRICT_TRANS_TABLES'"},
+        }
+    }
 
 
 # Password validation

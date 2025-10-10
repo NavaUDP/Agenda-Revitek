@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Slot, Reserva, ReservaServicio, ReservaSlot, HistorialEstado
+from .models import Slot, Reserva, ReservaServicio, ReservaSlot, HistorialEstado, AdminAudit
 from apps.catalogo.models import ProfesionalServicio
 from apps.usuarios.models import Cliente
 
