@@ -1,25 +1,17 @@
 # Copilot Instructions for Agenda-Revitek
 
 ## Project Overview
-- **Monorepo** with two main components:
   - **Frontend** (`revitek/front/`): Vite + React + TypeScript, Tailwind CSS, shadcn-ui. Contains reusable UI, pages, hooks, and API clients for Django backend.
   - **Backend** (`revitek/server/`): Django + Django REST Framework (DRF). Modular apps for agenda, catalogo, estados, notificaciones, usuarios, chatbot, etc.
 
 ## Architecture & Data Flow
-- **Frontend** calls backend via REST endpoints (see `src/api/` for agenda, profesionales, servicios, estados, recordatorios, chatbot).
-- **Backend** exposes `/api/` endpoints, organized by app (see `server/apps/*/views.py`, `urls.py`).
-- **Chatbot**: Binary decision tree, editable in admin UI, engine in `server/apps/chatbot/engine.py`.
-- **Notifications**: WhatsApp Business integration via `server/integrations/whatsapp/client.py` and message templates in `server/notifications/templates/`.
-- **Admin**: CRUD and assignment flows for professionals/services, multi-professional calendar, chatbot builder.
 
 ## Developer Workflows
-- **Frontend**
   - Install: `cd revitek/front && npm i`
   - Dev server: `npm run dev`
   - Build: `npm run build`
   - Lint: `npm run lint`
   - Main entry: `src/main.tsx`, routes in `src/routes/AppRoutes.tsx`
-- **Backend**
   - Install: `cd revitek/server && pip install -r requirements.txt`
   - Run: `python manage.py runserver`
   - Migrate: `python manage.py migrate`
@@ -28,12 +20,10 @@
   - Main entry: `server/server/settings.py`, URLs in `server/server/urls.py`
 
 ## Conventions & Patterns
-- **Frontend**
   - API calls: Use hooks in `src/hooks/` and clients in `src/api/`.
   - Context: Auth, booking, chatbot state in `src/context/`.
   - UI: Reusable components in `src/components/`, forms in `src/components/forms/`, tables in `src/components/tables/`.
   - Routing: Centralized in `src/routes/`.
-- **Backend**
   - Apps are modular, each with `models.py`, `serializers.py`, `views.py`, `urls.py`, `tests.py`.
   - Shared logic/utilities in `server/common/`.
   - Integrations (WhatsApp, email) in `server/integrations/`.
@@ -42,14 +32,8 @@
   - Signals for notifications/state updates in `server/apps/agenda/signals.py`.
 
 ## Integration Points
-- **WhatsApp Business**: `server/integrations/whatsapp/client.py` (API integration, rate limiting, retries).
-- **Celery** (optional): For scheduled notifications (`server/apps/notificaciones/tasks.py`).
-- **OpenAPI**: Optional spec in `server/schema/openapi.yaml`.
-- **Docker**: Compose and Dockerfiles in `server/docker/` for web/worker orchestration.
 
 ## Examples
-- To add a new agenda feature: Update `server/apps/agenda/` (models, views, serializers, urls), expose endpoint, update frontend API client in `src/api/agenda.ts`, and UI in `src/pages/Reservas/`.
-- To add a notification template: Add file to `server/notifications/templates/`, update logic in `server/apps/notificaciones/`.
 
 ## References
 
@@ -81,3 +65,94 @@
 | RF-A09  | Envío de Recordatorios      | WhatsApp reminders 24h before. `/api/recordatorios/`, integration: `server/integrations/whatsapp/` | Obligatorio |
 
 **Feedback:** If any section is unclear or missing, please specify what needs improvement or what additional context is needed.
+
+## Requirements & Implementation (focus: admin + client)
+
+Below are the project's concrete requirements (RFs) with where to change code, acceptance criteria, and implementation notes. Use these as the single-source mapping for work tickets and PRs.
+
+- RF-C01 — Lista de servicios
+  - Backend: `server/apps/catalogo/` or `server/apps/servicios/` (check `models.py`, `views.py`, `serializers.py`).
+  - Frontend: `revitek/front/src/api/servicios.ts`, UI: `revitek/front/src/pages/Index.tsx`, component `ServiceCard.tsx`.
+  - Acceptance: GET `/api/servicios/` returns list with fields (id, name, duration, price, description). Frontend displays cards with link to booking.
+  - Notes: Ensure serializer exposes duration (minutes) and price (number). Add pagination if >50 services.
+
+- RF-C02 — Seleccionar servicio y ver disponibilidad
+  - Backend: availability endpoint in `server/apps/agenda/views.py` (filter by servicio and professional), helper logic in `server/apps/agenda/services.py`.
+  - Frontend: booking calendar in `revitek/front/src/pages/ClientBookingPage.tsx` and `AppointmentModal.tsx`.
+  - Acceptance: Given `service_id` and optional `professional_id`, endpoint returns available time slots for next 30 days in ISO datetime array.
+  - Notes: Availability must respect professional working hours and existing bookings (see `overbooking` logic in `services.py`).
+
+- RF-C03 — Agendamiento
+  - Backend: POST `/api/agenda/` handled by `server/apps/agenda/serializers.py` and `views.py` (create appointment). Validate conflicts and create notification signal in `server/apps/agenda/signals.py`.
+  - Frontend: booking form in `ClientBookingPage.tsx` posts to `src/api/agenda.ts` and shows confirmation modal.
+  - Acceptance: Successful create returns 201 with appointment id, service, datetime, professional, client info; no overlap allowed (atomic DB transaction).
+
+- RF-C04 — Confirmación de reserva (deseable)
+  - Backend: Notification/email in `server/apps/notificaciones/` triggered by signals. Templates: `server/notifications/templates/`.
+  - Frontend: Confirmation UI in booking flow; show printable details and reservation identifier.
+  - Acceptance: On create, email send job scheduled (or mocked in dev). Frontend shows reservation id and confirmation message.
+
+- RF-C05 — Cancelar cita (opcional)
+  - Backend: PATCH/DELETE `/api/agenda/{id}/` in `views.py`. Enforce 24h rule in view/serializer validation.
+  - Frontend: Cancel action in reservation view; require reservation id and confirmation.
+  - Acceptance: Cancels only if >24 hours before appointment start; returns 200 and schedules cancellation notifications.
+
+- RF-C06 — Seguimiento de servicio
+  - Backend: `server/apps/estados/` exposes state lookup by reservation id.
+  - Frontend: `src/pages/Estado/` lookup form uses `src/api/estados.ts`.
+  - Acceptance: Given reservation id, returns current status (Reserved, In Workshop, In Progress, Ready) and changelog.
+
+- RF-C07 — Chatbot
+  - Backend: `server/apps/chatbot/` (engine, serializers, views). Provide endpoints `/api/chatbot/` to fetch tree and to progress conversation.
+  - Frontend: `revitek/front/src/components/Chatbot/` — lightweight widget that can request services and start booking.
+  - Acceptance: Chatbot can list services and open booking modal with service preselected.
+
+- RF-A01..RF-A08 — Admin features
+  - Backend: Admin APIs live across `server/apps/agenda/`, `server/apps/profesionales/`, `server/apps/usuarios/`, and `server/apps/catalogo/`.
+  - Frontend: Admin UI under `revitek/front/src/pages/Admin/` and layout `AdminLayout.tsx`.
+  - Key files: appointment views in `server/apps/agenda/views.py`, professionals in `server/apps/profesionales/views.py`, users in `server/apps/usuarios/`.
+  - Acceptance (sample):
+    - RF-A01: Admin calendar returns appointments filtered by day/week/month with pagination and optional professional filter.
+    - RF-A02: Admin can create/modify/cancel appointments via API and UI; operations must be audited (created_by, modified_by).
+    - RF-A03/A04: Service CRUD endpoints and admin UI; deleting a service should prevent deletion if future appointments exist (return 400).
+    - RF-A05/A06: Admin can create users and view their booking history via `/api/usuarios/` and `/api/agenda/?user_id=`.
+    - RF-A07: Professionals CRUD with working schedule fields used by availability logic.
+    - RF-A08: Admin can update appointment/service state; changes propagate to `estados` and trigger notifications.
+
+- RF-A09 — WhatsApp reminders (24h)
+  - Backend: Integration code in `server/integrations/whatsapp/`. Use Celery scheduled task `server/apps/notificaciones/tasks.py` or Django management command `scripts/send_reminders.py` for cron.
+  - Acceptance: Reminders are scheduled and a message (template id + variables) is sent 24 hours before appointment; log send attempts and failures.
+
+Implementation notes and quick commands
+- Run backend locally
+
+```bash
+cd revitek/server
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+- Run frontend
+
+```bash
+cd revitek/front
+npm i
+npm run dev
+```
+
+- Tests
+  - Backend: `python manage.py test server.apps.agenda` (or specific app)
+  - Frontend: `npm run test` (if configured) or add vitest/jest tests in `revitek/front/src/__tests__`.
+
+Quick PR checklist for RF work
+- Add/modify API endpoints in correct app; add serializer and view tests.
+- Update `revitek/front/src/api/*` to match new endpoints.
+- Add front page/component for the flow and link from nav.
+- Seed demo data or add fixtures for new models.
+- Update `.github/copilot-instructions.md` mapping if you add new apps or change boundaries.
+
+If you'd like, I can now:
+- generate endpoint stubs for any RF you pick (backend views, serializers, minimal tests), or
+- scaffold corresponding frontend pages/components and API client methods.
+
