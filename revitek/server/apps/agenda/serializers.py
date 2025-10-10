@@ -25,6 +25,7 @@ class ReservaCreateSerializer(serializers.Serializer):
     def create(self, validated):
         from django.db import transaction
         from django.shortcuts import get_object_or_404
+        from . import services as agenda_services
 
         with transaction.atomic():
             # cliente opcional (upsert por email si viene)
@@ -40,6 +41,20 @@ class ReservaCreateSerializer(serializers.Serializer):
             if slot.estado != "DISPONIBLE":
                 raise serializers.ValidationError({"slot_id": "El bloque no está disponible"})
 
+            # validate that all servicios are offered by the selected profesional
+            # and compute total duration
+            servicios_in = validated.get("servicios", [])
+            # Ensure profesional matches the slot professional
+            requested_prof = validated.get("profesional_id")
+            for s in servicios_in:
+                if s["profesional_id"] != requested_prof:
+                    raise serializers.ValidationError({"servicios": "Servicio asignado a profesional distinto al seleccionado"})
+
+            total_min = agenda_services.compute_total_duration(servicios_in)
+            slot_minutes = int((slot.fin - slot.inicio).total_seconds() // 60)
+            if total_min > slot_minutes:
+                raise serializers.ValidationError({"servicios": "La suma de duraciones excede la duración del bloque seleccionado"})
+
             reserva = Reserva.objects.create(
                 cliente=cliente,
                 titular_nombre=validated.get("titular_nombre",""),
@@ -54,9 +69,8 @@ class ReservaCreateSerializer(serializers.Serializer):
             slot.estado = "RESERVADO"
             slot.save(update_fields=["estado"])
 
-            # servicios con duraciones (overrides)
-            total_min = 0
-            for s in validated["servicios"]:
+            # servicios con duraciones (overrides) — use previously computed total_min
+            for s in servicios_in:
                 ps = ProfesionalServicio.objects.select_related("servicio").get(
                     profesional_id=s["profesional_id"], servicio_id=s["servicio_id"], activo=True
                 )
@@ -65,7 +79,6 @@ class ReservaCreateSerializer(serializers.Serializer):
                     reserva=reserva, servicio_id=s["servicio_id"], profesional_id=s["profesional_id"],
                     duracion_min_eff=dur
                 )
-                total_min += dur
 
             reserva.total_min = total_min
             reserva.save(update_fields=["total_min"])
