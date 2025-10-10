@@ -25,8 +25,21 @@ class ServicioViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ProfesionalServicioViewSet(viewsets.ModelViewSet):
-	queryset = ProfesionalServicio.objects.all()
+	queryset = ProfesionalServicio.objects.select_related('servicio').all()
 	serializer_class = ProfesionalServicioSerializer
+
+	def list(self, request, *args, **kwargs):
+		servicio_id = request.query_params.get('servicio_id')
+		profesional_id = request.query_params.get('profesional_id')
+		qs = self.queryset
+		if servicio_id:
+			qs = qs.filter(servicio_id=servicio_id, activo=True)
+		if profesional_id:
+			qs = qs.filter(profesional_id=profesional_id, activo=True)
+		data = []
+		for p in qs:
+			data.append(ProfesionalServicioSerializer(p).data)
+		return Response(data)
 
 	@action(detail=False, methods=["post"])
 	def asignar(self, request):

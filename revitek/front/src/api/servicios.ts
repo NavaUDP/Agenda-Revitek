@@ -24,3 +24,15 @@ export async function quitarServicio(profesionalId:number, servicioId:number) {
   const { data } = await http.delete(`/api/servicios/asignar`, { params: { profesional_id: profesionalId, servicio_id: servicioId }});
   return data;
 }
+
+// List all servicios (no profesional filter)
+export async function listAllServicios() {
+  const { data } = await http.get('/api/catalogo/servicios/');
+  return data;
+}
+
+// List ProfesionalServicio assignments filtered by servicio_id or profesional_id
+export async function listAsignaciones(params: { servicio_id?: number; profesional_id?: number } = {}) {
+  const { data } = await http.get('/api/catalogo/servicio_asignaciones/', { params });
+  return data;
+}
