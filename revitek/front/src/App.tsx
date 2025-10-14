@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 // Importación de Layouts y Páginas
 import PublicLayout from './layouts/PublicLayout'; 
 import LandingPage from './pages/LandingPage';
+import ServiciosPage from './pages/ServiciosPage';
 import LoginPage from './pages/LoginPage';
 import AdminDashboard from './pages/AgendaPage';
 import ProtectedRoute from './routes/ProtectedRoute';
@@ -19,6 +20,7 @@ function App() {
         {/* Todas las rutas anidadas aquí usarán el diseño de PublicLayout */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/servicios" element={<ServiciosPage />} />
           {/* Si tuvieras otras páginas públicas como /nosotros o /servicios, irían aquí */}
           {/* <Route path="/nosotros" element={<AboutPage />} /> */}
         </Route>
