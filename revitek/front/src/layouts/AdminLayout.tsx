@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet} from 'react-router-dom';
 import { Calendar, Users, Home } from 'lucide-react';
+import { listProfesionales } from "@/api/profesionales";
 
 const initialEvents = [
   // --- CITAS (Appointments) ---
@@ -56,17 +57,34 @@ const initialEvents = [
 
 ];
 
-const initialResources = [
-  { id: 'a', title: 'Felipe Cuevas'},
-  { id: 'b', title: 'Isaac Salomón'},
-  { id: 'c', title: 'Nicolas Isuani'},
-  { id: 'd', title: 'Sergio Lobos'},
-  { id: 'e', title: 'Benjamin Troncoso'}
-];
+type CalendarResource = {
+  id: string;
+  title: string;
+}
+
 
 export const AdminLayout = () => {
-    const [resources, setResources] = useState(initialResources);
-    const [events, setEvents] = useState(initialEvents);
+    const [resources, setResources] = useState<CalendarResource[]>([]);
+    const [events, setEvents] = useState(initialEvents); // Mantén eventos locales por ahora
+    const [loading, setLoading] = useState(true); // Estado de carga
+
+    // Carga los profesionales al montar el layout
+    useEffect(() => {
+        setLoading(true);
+        listProfesionales()
+            .then(data => {
+                // Mapea la data de la API al formato que necesita FullCalendar (id como string)
+                const formattedResources: CalendarResource[] = data.map(prof => ({
+                    id: String(prof.id), // Asegúrate que el ID sea string
+                    title: prof.nombre
+                }));
+                setResources(formattedResources);
+            })
+            .catch(error => console.error("Error fetching profesionales:", error))
+            .finally(() => setLoading(false));
+    }, []);
+
+    const contextValue = { resources, setResources, events, setEvents, loading };
 
     return (
         // --- NUEVO: Layout vertical ---
@@ -111,7 +129,7 @@ export const AdminLayout = () => {
             {/* --- ÁREA DE CONTENIDO PRINCIPAL --- */}
             <main className="flex-1 h-full overflow-y-auto">
                 {/* Outlet renderizará la página hija (Agenda o Profesionales) */}
-                <Outlet context={{ resources, setResources, events, setEvents }} />
+                <Outlet context={contextValue} />
             </main>
         </div>
     );
