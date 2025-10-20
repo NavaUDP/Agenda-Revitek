@@ -1,7 +1,14 @@
+<<<<<<< HEAD
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet} from 'react-router-dom';
 import { Calendar, Users, Home } from 'lucide-react';
 import { listProfesionales } from "@/api/profesionales";
+=======
+import { useState, useEffect } from "react"; // Añade useEffect
+import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Calendar, Users, Home } from 'lucide-react';
+import { listProfesionales } from '@/api/profesionales';
+>>>>>>> main
 
 const initialEvents = [
   // --- CITAS (Appointments) ---
@@ -60,6 +67,7 @@ const initialEvents = [
 type CalendarResource = {
   id: string;
   title: string;
+<<<<<<< HEAD
 }
 
 
@@ -69,34 +77,55 @@ export const AdminLayout = () => {
     const [loading, setLoading] = useState(true); // Estado de carga
 
     // Carga los profesionales al montar el layout
+=======
+};
+
+export const AdminLayout = () => {
+    // Cambia el tipo del estado a CalendarResource[]
+    const [resources, setResources] = useState<CalendarResource[]>([]);
+    const [events, setEvents] = useState(initialEvents);
+    const [loading, setLoading] = useState(true);
+
+>>>>>>> main
     useEffect(() => {
         setLoading(true);
         listProfesionales()
             .then(data => {
+<<<<<<< HEAD
                 // Mapea la data de la API al formato que necesita FullCalendar (id como string)
                 const formattedResources: CalendarResource[] = data.map(prof => ({
                     id: String(prof.id), // Asegúrate que el ID sea string
                     title: prof.nombre
                 }));
+=======
+                const formattedResources: CalendarResource[] = data.map(prof => ({
+                    id: String(prof.id),
+                    title: prof.nombre
+                }));
+                // Ahora los tipos coinciden
+>>>>>>> main
                 setResources(formattedResources);
             })
             .catch(error => console.error("Error fetching profesionales:", error))
             .finally(() => setLoading(false));
     }, []);
 
+<<<<<<< HEAD
+=======
+    // El contextValue ahora es consistente con el tipo de 'resources'
+>>>>>>> main
     const contextValue = { resources, setResources, events, setEvents, loading };
 
     return (
-        // --- NUEVO: Layout vertical ---
         <div className="flex flex-col h-screen bg-background">
-            {/* --- HEADER SUPERIOR DE NAVEGACIÓN --- */}
-            <header className="h-16 bg-card border-b border-border flex-shrink-0 flex items-center justify-between px-6 z-40">
+           {/* ... (el resto del componente no necesita cambios para este error) ... */}
+           <header className="h-16 bg-card border-b border-border flex-shrink-0 flex items-center justify-between px-6 z-40">
                 <div className="flex items-center space-x-6">
                     <h2 className="text-xl font-bold text-primary">Admin Panel</h2>
                     <nav className="flex items-center space-x-4">
-                        <NavLink 
+                        <NavLink
                             to="/admin/agenda"
-                            className={({ isActive }) => 
+                            className={({ isActive }) =>
                                 `flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                                     isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
                                 }`
@@ -105,9 +134,9 @@ export const AdminLayout = () => {
                             <Calendar className="h-4 w-4" />
                             <span>Agenda</span>
                         </NavLink>
-                        <NavLink 
+                        <NavLink
                             to="/admin/profesionales"
-                            className={({ isActive }) => 
+                            className={({ isActive }) =>
                                 `flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                                     isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
                                 }`
@@ -126,10 +155,13 @@ export const AdminLayout = () => {
                 </div>
             </header>
 
-            {/* --- ÁREA DE CONTENIDO PRINCIPAL --- */}
             <main className="flex-1 h-full overflow-y-auto">
+<<<<<<< HEAD
                 {/* Outlet renderizará la página hija (Agenda o Profesionales) */}
                 <Outlet context={contextValue} />
+=======
+                 <Outlet context={contextValue} />
+>>>>>>> main
             </main>
         </div>
     );
