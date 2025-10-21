@@ -59,15 +59,12 @@ const AdminServicesPage = () => {
         setLoading(true);
         try {
             // Incluir precio en el payload (asegúrate que createServicio lo acepte)
-            // await createServicio({ nombre: name, duracion_min: duration, precio: price }); // Descomenta cuando esté la API
-            toast({ title: "Éxito", description: `Servicio "${name}" añadido (simulado).` });
+            await createServicio({ nombre: name, duracion_min: duration, precio: price }); // Descomenta cuando esté la API
+            toast({ title: "Éxito", description: `Servicio "${name}" añadido.` });
             setNewServiceName('');
             setNewServiceDuration('');
-            setNewServicePrice(''); // <-- Limpiar input de precio
-            // fetchServicios(); // Vuelve a cargar la lista
-            // Simulación:
-            const fakeNewService = { id: Date.now(), nombre: name, duracion_min: duration, activo: true, precio: price };
-            setServicios(prev => [...prev, fakeNewService]);
+            setNewServicePrice(''); 
+            fetchServicios(); 
 
         } catch (err) {
             toast({ title: "Error", description: "No se pudo añadir el servicio.", variant: "destructive" });

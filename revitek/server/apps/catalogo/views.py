@@ -6,7 +6,7 @@ from .models import Servicio, ProfesionalServicio
 from .serializers import ServicioSerializer, ProfesionalServicioSerializer
 
 
-class ServicioViewSet(viewsets.ReadOnlyModelViewSet):
+class ServicioViewSet(viewsets.ModelViewSet):
 	queryset = Servicio.objects.filter(activo=True)
 	serializer_class = ServicioSerializer
 
