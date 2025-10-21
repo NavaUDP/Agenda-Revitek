@@ -8,7 +8,7 @@ export async function listServicios(profesionalId: number) {
 }
 
 // POST crear servicio
-export async function createServicio(payload: {nombre:string; categoria?:string; duracion_min:number; activo?:boolean}) {
+export async function createServicio(payload: {nombre:string; categoria?:string; duracion_min:number; activo?:boolean; precio:number}) {
   const { data } = await http.post("/api/servicios/all", payload);
   return data;
 }

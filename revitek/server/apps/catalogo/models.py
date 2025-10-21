@@ -6,6 +6,7 @@ class Servicio(models.Model):
     categoria = models.CharField(max_length=120, blank=True, default="")
     duracion_min = models.PositiveIntegerField(default=60)
     activo = models.BooleanField(default=True)
+    precio = models.IntegerField(default=0)
 
     class Meta:
         ordering = ["nombre"]
