@@ -11,6 +11,7 @@ import ClientBookingPage from './pages/ClientBookingPage';
 import { AdminLayout } from './layouts/AdminLayout';
 import ProfessionalsPage from './pages/ProfessionalsPage';
 import AgendaPage from './pages/AgendaPage';
+import AdminServicesPage from './pages/AdminServicesPage'
 
 function App() {
   return (
@@ -43,10 +44,9 @@ function App() {
         >
           {/* Ruta por defecto para /admin -> redirige a la agenda */}
           <Route index element={<Navigate to="agenda" replace />} /> 
-          
-          {/* Rutas anidadas que se renderizarán dentro del <Outlet> de AdminLayout */}
           <Route path="agenda" element={<AgendaPage />} />
           <Route path="profesionales" element={<ProfessionalsPage />} />
+          <Route path="servicios" element={<AdminServicesPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

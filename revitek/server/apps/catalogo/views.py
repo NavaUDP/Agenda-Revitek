@@ -1,11 +1,12 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import IsAdminUser
 from .models import Servicio, ProfesionalServicio
 from .serializers import ServicioSerializer, ProfesionalServicioSerializer
 
 
-class ServicioViewSet(viewsets.ReadOnlyModelViewSet):
+class ServicioViewSet(viewsets.ModelViewSet):
 	queryset = Servicio.objects.filter(activo=True)
 	serializer_class = ServicioSerializer
 
