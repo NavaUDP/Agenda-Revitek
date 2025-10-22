@@ -70,3 +70,5 @@ temp/
 .cache/
 coverage/
 revitek/serverenv/
+revitek/server/.env
+.gitignore
