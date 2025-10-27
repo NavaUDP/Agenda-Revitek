@@ -64,3 +64,36 @@ class AgendaApiTests(TestCase):
 		}
 		resp = self.client.post('/api/agenda/reservas/', payload, format='json')
 		self.assertEqual(resp.status_code, 400)
+
+	def test_aggregated_availability_single_service(self):
+		# request availability for the service assigned to the profesional
+		tomorrow = date.today() + timedelta(days=1)
+		resp = self.client.post('/api/agenda/availability', {'services': [self.serv.id], 'fecha': str(tomorrow)}, format='json')
+		self.assertEqual(resp.status_code, 200)
+		data = resp.json()
+		self.assertIsInstance(data, list)
+		self.assertGreaterEqual(len(data), 1)
+		# each entry should have profesionales and slot_ids
+		self.assertIn('profes', data[0])
+		self.assertIn('slot_ids', data[0])
+
+	def test_aggregated_availability_no_common_prof(self):
+		# create a service not assigned to the professional
+		serv2 = Servicio.objects.create(nombre="Servicio Unassigned", duracion_min=30)
+		tomorrow = date.today() + timedelta(days=1)
+		resp = self.client.post('/api/agenda/availability', {'services': [self.serv.id, serv2.id], 'fecha': str(tomorrow)}, format='json')
+		self.assertEqual(resp.status_code, 200)
+		data = resp.json()
+		self.assertIsInstance(data, list)
+		self.assertEqual(len(data), 0)
+
+	def test_aggregated_availability_multi_service_common(self):
+		# create another service and assign to same profesional
+		serv3 = Servicio.objects.create(nombre="Servicio 3", duracion_min=45)
+		ProfesionalServicio.objects.create(profesional=self.pro, servicio=serv3, duracion_override_min=None)
+		tomorrow = date.today() + timedelta(days=1)
+		resp = self.client.post('/api/agenda/availability', {'services': [self.serv.id, serv3.id], 'fecha': str(tomorrow)}, format='json')
+		self.assertEqual(resp.status_code, 200)
+		data = resp.json()
+		self.assertIsInstance(data, list)
+		self.assertGreaterEqual(len(data), 1)

@@ -1,3 +1,4 @@
+// Removed stray opening backticks
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 // Importación de Layouts y Páginas
