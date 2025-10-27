@@ -265,7 +265,25 @@ function ServicesArea() {
                 </div>
             )}
 
-            {Object.keys(groups).map((cat) => (
+            {(() => {
+                // Desired order: SERVICIO REVISION TÉCNICA, Grabado patente, Lavados, Servicio de traslado, OTROS
+                const desiredOrder = [
+                    'SERVICIO REVISION TÉCNICA',
+                    'GRABADO PATENTE',
+                    'LAVADOS',
+                    'SERVICIO DE TRASLADO',
+                    'OTROS',
+                ];
+                const cats = Object.keys(groups || {});
+                cats.sort((a, b) => {
+                    const ia = desiredOrder.indexOf(a);
+                    const ib = desiredOrder.indexOf(b);
+                    if (ia === -1 && ib === -1) return a.localeCompare(b);
+                    if (ia === -1) return 1;
+                    if (ib === -1) return -1;
+                    return ia - ib;
+                });
+                return cats.map((cat) => (
                 <div key={cat} className="mb-4">
                     <div onClick={() => toggleCategory(cat)} role="button" tabIndex={0} className="flex items-center justify-between bg-muted/40 px-4 py-3 rounded-md border border-border cursor-pointer" onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleCategory(cat); }}>
                         <div className="font-semibold text-sm text-foreground">{cat}</div>
@@ -290,7 +308,10 @@ function ServicesArea() {
                                                 <div>|</div>
                                                 <div>En domicilio</div>
                                             </div>
-                                            <div className="mt-3 font-semibold text-foreground">${s.precio?.toLocaleString?.() ?? s.precio}</div>
+                                            {/* Hide price for OTROS category when price is zero */}
+                                            {!(cat === 'OTROS' && ((s.precio || 0) === 0)) && (
+                                                <div className="mt-3 font-semibold text-foreground">${s.precio?.toLocaleString?.() ?? s.precio}</div>
+                                            )}
                                         </div>
 
                                         <div className="mt-auto flex justify-end">
@@ -316,7 +337,8 @@ function ServicesArea() {
                         </div>
                     )}
                 </div>
-            ))}
+            ));
+                })()}
 
             {activeBookingServices && (
                 <div className="mt-6">
