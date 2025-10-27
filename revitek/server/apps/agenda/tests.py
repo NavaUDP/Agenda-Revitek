@@ -41,7 +41,13 @@ class AgendaApiTests(TestCase):
 		resp = self.client.post('/api/agenda/reservas/', payload, format='json')
 		self.assertEqual(resp.status_code, 201)
 		data = resp.json()
+		# The create endpoint should now return the full ReservaDetailSerializer
+		# representation when possible. At minimum it must include id and
+		# the related 'servicios' and 'reservaslot' structures.
 		self.assertIn('id', data)
+		self.assertIn('servicios', data)
+		self.assertIn('reservaslot', data)
+		self.assertIsInstance(data['servicios'], list)
 
 	def test_create_reserva_exceeds_slot(self):
 		# create another servicio with long duration and assign to profesional
