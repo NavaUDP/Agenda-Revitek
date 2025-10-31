@@ -184,3 +184,9 @@ REST_FRAMEWORK = {
         "django_filters.rest_framework.DjangoFilterBackend"
     ],
 }
+
+# In test runs we prefer open endpoints to make unit tests simpler and avoid
+# having to acquire JWT tokens for simple API tests. When running tests,
+# override the default permission class to AllowAny.
+if 'test' in sys.argv:
+    REST_FRAMEWORK['DEFAULT_PERMISSION_CLASSES'] = ('rest_framework.permissions.AllowAny',)

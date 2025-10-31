@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, AllowAny
 from .models import Servicio, ProfesionalServicio
 from .serializers import ServicioSerializer, ProfesionalServicioSerializer
 
@@ -9,6 +9,7 @@ from .serializers import ServicioSerializer, ProfesionalServicioSerializer
 class ServicioViewSet(viewsets.ModelViewSet):
 	queryset = Servicio.objects.filter(activo=True)
 	serializer_class = ServicioSerializer
+	permission_classes = [AllowAny]
 
 	def list(self, request, *args, **kwargs):
 		profesional_id = request.query_params.get("profesional_id")
@@ -28,6 +29,7 @@ class ServicioViewSet(viewsets.ModelViewSet):
 class ProfesionalServicioViewSet(viewsets.ModelViewSet):
 	queryset = ProfesionalServicio.objects.select_related('servicio').all()
 	serializer_class = ProfesionalServicioSerializer
+	permission_classes = [AllowAny]
 
 	def list(self, request, *args, **kwargs):
 		servicio_id = request.query_params.get('servicio_id')

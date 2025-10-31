@@ -1,9 +1,15 @@
 import http from "./http";
 
-export async function listSlots(params: { profesionalId: number; fecha: string }) {
-  const { data } = await http.get("/api/agenda/slots", {
-    params: { profesional_id: params.profesionalId, fecha: params.fecha },
-  });
+export async function listSlots(params: { profesionalId?: number; fecha: string }) {
+  const p: any = { fecha: params.fecha };
+  if (typeof params.profesionalId !== 'undefined' && params.profesionalId !== null) p.profesional_id = params.profesionalId;
+  const { data } = await http.get("/api/agenda/slots", { params: p });
+  return data;
+}
+
+export async function getAggregatedAvailability(services: number[], fecha: string) {
+  // POST to server-side aggregated availability endpoint
+  const { data } = await http.post('/api/agenda/availability', { services, fecha });
   return data;
 }
 

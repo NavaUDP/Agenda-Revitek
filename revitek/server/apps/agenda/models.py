@@ -61,29 +61,14 @@ class AdminAudit(models.Model):
         ("DELETE", "Delete"),
         ("CANCEL", "Cancel"),
     ]
-    admin_email = models.EmailField()
-    action = models.CharField(max_length=16, choices=ACTIONS)
-    model_name = models.CharField(max_length=64)
-    object_id = models.CharField(max_length=64)
-    timestamp = models.DateTimeField(auto_now_add=True)
-    notes = models.TextField(blank=True, default="")
 
-
-class AdminAudit(models.Model):
-    ACTIONS = [
-        ("CREATE", "Create"),
-        ("UPDATE", "Update"),
-        ("DELETE", "Delete"),
-        ("CANCEL", "Cancel"),
-    ]
-
-    # --- MEJORA RECOMENDADA ---
-    # Es mejor conectar al User admin que solo guardar el email
+    # Prefer linking to a real admin user instead of storing free-form email.
     admin_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
-        limit_choices_to={'is_staff': True}  # Solo muestra admins en el panel
+        null=True,
+        blank=True,
+        limit_choices_to={"is_staff": True},
     )
 
     action = models.CharField(max_length=16, choices=ACTIONS)

@@ -138,3 +138,9 @@ class Direccion(models.Model):
     def __str__(self):
         return f"{self.alias}: {self.calle} {self.numero}, {self.comuna} ({self.propietario.email})"
 
+
+# Backwards-compatible alias: some modules expect a `Cliente` model name.
+# Map it to the project User model so older imports like
+# `from apps.usuarios.models import Cliente` continue to work.
+Cliente = User
+
