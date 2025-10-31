@@ -5,7 +5,7 @@ from .models import Servicio, ProfesionalServicio
 class ServicioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Servicio
-        fields = ["id", "nombre", "categoria", "duracion_min", "activo"]
+        fields = ["id", "nombre", "categoria", "duracion_min", "activo", "precio"]
 
 
 class ProfesionalServicioSerializer(serializers.ModelSerializer):

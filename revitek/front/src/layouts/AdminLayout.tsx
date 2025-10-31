@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"; // Añade useEffect
 import { Link, NavLink, Outlet } from 'react-router-dom';
-import { Calendar, Users, Home } from 'lucide-react';
+import { Calendar, Users, Home, Wrench } from 'lucide-react';
 import { listProfesionales } from '@/api/profesionales';
 
 const initialEvents = [
@@ -63,9 +63,8 @@ type CalendarResource = {
 };
 
 export const AdminLayout = () => {
-    // Cambia el tipo del estado a CalendarResource[]
     const [resources, setResources] = useState<CalendarResource[]>([]);
-    const [events, setEvents] = useState(initialEvents);
+    const [events, setEvents] = useState(initialEvents); // Asegúrate que initialEvents esté definido o importado
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -76,19 +75,16 @@ export const AdminLayout = () => {
                     id: String(prof.id),
                     title: prof.nombre
                 }));
-                // Ahora los tipos coinciden
                 setResources(formattedResources);
             })
             .catch(error => console.error("Error fetching profesionales:", error))
             .finally(() => setLoading(false));
     }, []);
 
-    // El contextValue ahora es consistente con el tipo de 'resources'
     const contextValue = { resources, setResources, events, setEvents, loading };
 
     return (
         <div className="flex flex-col h-screen bg-background">
-           {/* ... (el resto del componente no necesita cambios para este error) ... */}
            <header className="h-16 bg-card border-b border-border flex-shrink-0 flex items-center justify-between px-6 z-40">
                 <div className="flex items-center space-x-6">
                     <h2 className="text-xl font-bold text-primary">Admin Panel</h2>
@@ -115,6 +111,21 @@ export const AdminLayout = () => {
                             <Users className="h-4 w-4" />
                             <span>Profesionales</span>
                         </NavLink>
+
+                        {/* ----- INICIO NUEVO ENLACE ----- */}
+                        <NavLink
+                            to="/admin/servicios" // Nueva ruta
+                            className={({ isActive }) =>
+                                `flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                                    isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+                                }`
+                            }
+                        >
+                            <Wrench className="h-4 w-4" /> {/* Nuevo ícono */}
+                            <span>Servicios</span> {/* Nuevo texto */}
+                        </NavLink>
+                        {/* ----- FIN NUEVO ENLACE ----- */}
+
                     </nav>
                 </div>
                 <div>
@@ -126,6 +137,7 @@ export const AdminLayout = () => {
             </header>
 
             <main className="flex-1 h-full overflow-y-auto">
+                 {/* El Outlet renderizará AgendaPage, ProfessionalsPage o la nueva AdminServiciosPage */}
                  <Outlet context={contextValue} />
             </main>
         </div>

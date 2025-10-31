@@ -2,6 +2,7 @@
 
 import { createContext, useState, ReactNode, useEffect, useContext } from 'react';
 import axios from 'axios';
+import http from '../api/http';
 import { jwtDecode } from 'jwt-decode';
 
 // --- 1. Definimos los nuevos tipos ---
@@ -49,6 +50,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             // 2. Configurar axios para que envíe este token en TODAS las peticiones
             axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+            // También sincronizar la instancia http usada por los clients
+            try { http.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`; } catch(e) {}
 
             // 3. Decodificar el token para obtener los datos del usuario
             const decodedToken = jwtDecode<JwtPayload>(accessToken);
@@ -128,8 +131,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
 
-        // Limpia la cabecera de axios
-        delete axios.defaults.headers.common['Authorization'];
+    // Limpia la cabecera de axios
+    delete axios.defaults.headers.common['Authorization'];
+    // Limpia la cabecera de la instancia http
+    try { delete http.defaults.headers.common['Authorization']; } catch(e) {}
     };
 
     // --- 5. El valor que proveemos al resto de la app ---

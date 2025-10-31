@@ -54,8 +54,6 @@ class Reserva(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
-
-
 class AdminAudit(models.Model):
     ACTIONS = [
         ("CREATE", "Create"),
@@ -64,13 +62,13 @@ class AdminAudit(models.Model):
         ("CANCEL", "Cancel"),
     ]
 
-    # --- MEJORA RECOMENDADA ---
-    # Es mejor conectar al User admin que solo guardar el email
+    # Prefer linking to a real admin user instead of storing free-form email.
     admin_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
-        limit_choices_to={'is_staff': True}  # Solo muestra admins en el panel
+        null=True,
+        blank=True,
+        limit_choices_to={"is_staff": True},
     )
 
     action = models.CharField(max_length=16, choices=ACTIONS)
