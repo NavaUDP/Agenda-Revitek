@@ -13,6 +13,7 @@ import { AdminLayout } from './layouts/AdminLayout';
 import ProfessionalsPage from './pages/ProfessionalsPage';
 import AgendaPage from './pages/AgendaPage';
 import AdminServicesPage from './pages/AdminServicesPage'
+import AdminAssignmentsPage from './pages/AdminAssignmentsPage';
 
 function App() {
   return (
@@ -48,6 +49,7 @@ function App() {
           <Route path="agenda" element={<AgendaPage />} />
           <Route path="profesionales" element={<ProfessionalsPage />} />
           <Route path="servicios" element={<AdminServicesPage />} />
+          <Route path="asignaciones" element={<AdminAssignmentsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

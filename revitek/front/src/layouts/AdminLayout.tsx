@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"; // Añade useEffect
 import { Link, NavLink, Outlet } from 'react-router-dom';
-import { Calendar, Users, Home, Wrench } from 'lucide-react';
+import { Calendar, Users, Home, Wrench, UsersRound } from 'lucide-react';
 import { listProfesionales } from '@/api/profesionales';
 
 const initialEvents = [
@@ -112,7 +112,6 @@ export const AdminLayout = () => {
                             <span>Profesionales</span>
                         </NavLink>
 
-                        {/* ----- INICIO NUEVO ENLACE ----- */}
                         <NavLink
                             to="/admin/servicios" // Nueva ruta
                             className={({ isActive }) =>
@@ -124,7 +123,18 @@ export const AdminLayout = () => {
                             <Wrench className="h-4 w-4" /> {/* Nuevo ícono */}
                             <span>Servicios</span> {/* Nuevo texto */}
                         </NavLink>
-                        {/* ----- FIN NUEVO ENLACE ----- */}
+
+                        <NavLink
+                            to="/admin/asignaciones" // Nueva ruta
+                            className={({ isActive }) =>
+                                `flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                                    isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+                                }`
+                            }
+                        >
+                            <UsersRound className="h-4 w-4" /> {/* Nuevo ícono */}
+                            <span>Asignaciones</span> {/* Nuevo texto */}
+                        </NavLink>
 
                     </nav>
                 </div>

@@ -14,14 +14,14 @@ export async function createServicio(payload: {nombre:string; categoria?:string;
 }
 
 // POST asignar servicio a profesional
-export async function asignarServicio(payload: {profesional_id:number; servicio_id:number; duracion_override_min?:number|null; activo?:boolean}) {
-  const { data } = await http.post("/api/servicios/asignar", payload);
+export async function asignarServicio(payload: {profesional:number; servicio:number; duracion_override_min?:number|null; activo?:boolean}) {
+  const { data } = await http.post("/api/catalogo/servicio_asignaciones/", payload);
   return data;
 }
 
 // DELETE quitar asignación
-export async function quitarServicio(profesionalId:number, servicioId:number) {
-  const { data } = await http.delete(`/api/servicios/asignar`, { params: { profesional_id: profesionalId, servicio_id: servicioId }});
+export async function quitarServicio(asignacionId: number) {
+  const { data } = await http.delete(`/api/catalogo/servicio_asignaciones/${asignacionId}/`);
   return data;
 }
 
