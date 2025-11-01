@@ -1,7 +1,8 @@
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { listAllServicios } from '@/api/servicios';
-import { getAggregatedAvailability, createReserva } from '@/api/agenda';
+// --- (MODIFICACIÓN 1: Importar ReservaPayload) ---
+import { getAggregatedAvailability, createReserva, ReservaPayload } from '@/api/agenda'; 
 import { useEffect, useState } from 'react';
 
 function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceIdsProp?: number[]; onClose?: () => void }) {
@@ -105,27 +106,47 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
 
     async function reservarAggregated(aggr: { inicio: string; fin: string; profes: number[]; slotIds?: number[]; slot_ids?: number[] }) {
         if (!aggr || selectedServiceIds.length === 0) return;
-        // pick the first professional that offers this aggregated slot
+        
         const profesional_id = aggr.profes[0];
         const slot_id = Array.isArray(aggr.slotIds) && aggr.slotIds.length ? aggr.slotIds[0] : (Array.isArray((aggr as any).slot_ids) ? (aggr as any).slot_ids[0] : undefined);
+        
+        // Validar que tengamos un slot_id
+        if (!slot_id) {
+             alert('Error: No se pudo encontrar un ID de slot para esta reserva.');
+             console.error("Error: slot_id es undefined", aggr);
+             return;
+        }
+
         const serviciosPayload = selectedServiceIds.map(sid => ({ servicio_id: Number(sid), profesional_id }));
-        const payload = {
-            cliente: { nombre: 'Anon', email: null, telefono: '' },
-            titular_nombre: 'Anon',
-            titular_email: null,
-            titular_tel: '',
-            profesional_id,
+
+        // --- (MODIFICACIÓN 2: Corregir el payload) ---
+
+        // 1. Generamos un email temporal único para cumplir la validación del backend
+        const tempEmail = `cliente_${Date.now()}@revitek.cl`;
+
+        // 2. Definimos el payload CORRECTO según ReservaCreateSerializer
+        const payload: ReservaPayload = {
+            cliente: { 
+                nombre: 'Cliente Web', 
+                email: tempEmail, // Usamos el email temporal (no puede ser null)
+                telefono: '0'     // Usamos un placeholder
+            },
+            // Se eliminan los campos 'titular_nombre', 'titular_email', 'titular_tel'
+            profesional_id: profesional_id,
             servicios: serviciosPayload,
-            slot_id,
+            slot_id: slot_id,
             nota: 'Reservado desde frontend (multi-service)'
         };
+        // --- (FIN DE LA MODIFICACIÓN) ---
+
         try {
-            const res = await createReserva(payload);
+            const res = await createReserva(payload); // Ahora 'payload' es correcto
             alert('Reserva creada: ' + res.id);
             if (onClose) onClose();
         } catch (e: any) {
             console.error(e);
-            alert('Error al crear reserva: ' + (e.message || 'unknown'));
+            const errorMsg = e?.response?.data ? JSON.stringify(e.response.data) : (e.message || 'unknown');
+            alert('Error al crear reserva: ' + errorMsg);
         }
     }
 
@@ -386,4 +407,3 @@ function ClientBookingPage() {
 }
 
 export default ClientBookingPage;
-

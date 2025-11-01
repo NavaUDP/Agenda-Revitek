@@ -30,9 +30,9 @@ from apps.profesionales.models import Profesional
 
 
 def generate_daily_slots_for_profesional(profesional_id, for_date: date, slot_min=60):
-    """Create availability slots for a professional on a given date if none exist.
-    This is a simple generator based on a fixed working window (09:00-17:00) for now.
-    In production use `CalendarioLaboral` from `apps.profesionales`.
+    """
+    (RESTAURADO A LA LÓGICA ORIGINAL)
+    Create availability slots for a professional on a given date if none exist.
     """
     prof = Profesional.objects.get(pk=profesional_id)
     start = datetime.combine(for_date, time(hour=9, minute=0))
@@ -44,6 +44,7 @@ def generate_daily_slots_for_profesional(profesional_id, for_date: date, slot_mi
 
     slots = []
     cur = start
+    # Bucle restaurado para crear slots de 60 min (o slot_min)
     while cur + timedelta(minutes=slot_min) <= end:
         fin = cur + timedelta(minutes=slot_min)
         s, created = Slot.objects.get_or_create(profesional_id=profesional_id, inicio=cur, defaults={
