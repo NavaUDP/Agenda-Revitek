@@ -80,7 +80,7 @@ class AdminAudit(models.Model):
 
 class ReservaSlot(models.Model):
     reserva = models.ForeignKey(Reserva, on_delete=models.CASCADE, related_name="reservaslot")
-    slot = models.OneToOneField(Slot, on_delete=models.PROTECT, related_name="ocupacion")
+    slot = models.ForeignKey(Slot, on_delete=models.PROTECT, related_name="ocupacion")
     profesional = models.ForeignKey(Profesional, on_delete=models.PROTECT)
 
 

@@ -1,7 +1,6 @@
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-
 from datetime import datetime
 
 
@@ -9,11 +8,9 @@ from datetime import datetime
 @authentication_classes([])
 @permission_classes([AllowAny])
 def aggregated_availability(request):
-    """Return aggregated available slots for a given date and a list of service ids.
-
-    Request JSON: { "services": [1,2], "fecha": "YYYY-MM-DD" }
-
-    Response: [{ "inicio": iso, "fin": iso, "profes": [ids], "slot_ids": [ids] }, ...]
+    """
+    (RESTAURADO) Devuelve slots agregados SIN filtrar por duración.
+    La validación de la duración se hará al momento de reservar.
     """
     services = request.data.get('services')
     fecha = request.data.get('fecha')
@@ -27,12 +24,12 @@ def aggregated_availability(request):
     except Exception:
         return Response({'detail': 'invalid fecha format'}, status=400)
 
-    # Deferred imports to avoid circular dependencies at module import time
+    # --- (Lógica de disponibilidad revertida) ---
     from apps.catalogo.models import ProfesionalServicio
     from .models import Slot
     from .services import generate_daily_slots_for_profesional
 
-    # For each service, find active professionals that provide it
+    # Encuentra profesionales en común (sin cambios)
     prof_sets = []
     for sid in services:
         qs = ProfesionalServicio.objects.filter(servicio_id=sid, activo=True).values_list('profesional_id', flat=True)
@@ -41,23 +38,25 @@ def aggregated_availability(request):
     if not prof_sets:
         return Response([], status=200)
 
-    # compute intersection: professionals able to perform ALL requested services
     common = set.intersection(*prof_sets) if prof_sets else set()
     if not common:
         return Response([], status=200)
 
-    # ensure daily slots exist for those professionals (generator may create slots)
+    # Asegura que los slots de 60 min existan
     for pid in common:
         try:
             generate_daily_slots_for_profesional(pid, fecha_parsed)
         except Exception:
-            # ignore generation errors for now
-            pass
+            pass # ignorar errores de generación por ahora
 
-    # collect available slots for common professionals on the date
-    qs = Slot.objects.filter(estado='DISPONIBLE', fecha=fecha_parsed, profesional_id__in=list(common)).order_by('inicio')
+    # Recolecta los slots (SIN filtro de duración)
+    qs = Slot.objects.filter(
+        estado='DISPONIBLE', 
+        fecha=fecha_parsed, 
+        profesional_id__in=list(common)
+    ).order_by('inicio')
 
-    # aggregate by inicio
+    # Agrega por hora de inicio (SIN filtro de duración)
     map = {}
     for s in qs:
         key = s.inicio.isoformat()
