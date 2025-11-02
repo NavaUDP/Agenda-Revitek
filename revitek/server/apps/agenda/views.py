@@ -1,15 +1,16 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action, api_view
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from .models import Slot, Reserva
 from .serializers import SlotSerializer, ReservaCreateSerializer, ReservaDetailSerializer
 from .services import generate_daily_slots_for_profesional, cancel_reserva, get_available_slots
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, AllowAny
 
 
 @api_view(["GET"])
+@permission_classes([AllowAny])
 def list_slots(request):
 	profesional_id = request.query_params.get("profesional_id")
 	fecha = request.query_params.get("fecha")
@@ -23,6 +24,18 @@ def list_slots(request):
 
 
 class ReservaViewSet(viewsets.ViewSet):
+	def get_permissions(self):
+		if self.action == 'create':
+			self.permission_classes = [AllowAny]
+		else:
+			self.permission_classes = [IsAdminUser]
+		return super().get_permissions()
+	
+	def list(self,request):
+		queryset = Reserva.objects.all().prefetch_related('servicios', 'reservaslot', 'reservaslot__slot', 'cliente')
+		serializer = ReservaDetailSerializer(queryset, many=True)
+		return Response(serializer.data)
+
 	def create(self, request):
 		serializer = ReservaCreateSerializer(data=request.data)
 		if serializer.is_valid():
@@ -38,6 +51,7 @@ class ReservaViewSet(viewsets.ViewSet):
 
 
 @api_view(["POST"])
+@permission_classes([IsAdminUser])
 def generate_slots(request):
 	# admin-only in production; kept simple here
 	profesional_id = request.data.get('profesional_id')
@@ -51,6 +65,7 @@ def generate_slots(request):
 
 
 @api_view(["POST"])
+@permission_classes([AllowAny])
 def cancel_reserva_view(request, pk=None):
 	# accept path param pk or payload reserva_id
 	reserva_id = pk or request.data.get('reserva_id')
