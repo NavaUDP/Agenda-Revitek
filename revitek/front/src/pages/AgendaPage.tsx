@@ -177,7 +177,7 @@ const AgendaPage = () => {
 
 
     return (
-        <div className="flex h-full">
+        <div className="flex h-[calc(100vh-4rem)] admin-calendar">
              {/* Sidebar */}
             <aside className={`transition-all duration-300 ease-in-out bg-card border-r border-border flex-shrink-0 overflow-hidden ${isSidebarOpen ? 'w-72' : 'w-0'}`}>
                 <div className="w-72 h-full"> {/* Contenido con ancho fijo */}
