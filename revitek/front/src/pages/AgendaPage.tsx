@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Menu, X } from 'lucide-react';
 import { createReserva, ReservaPayload } from '@/api/agenda'; // Importa la función API y el tipo Payload
 import { toast } from "@/components/ui/use-toast"; // Para mostrar notificaciones
+import { ReservaDetailModal } from '@/components/ReservaDetailModal';
+import { getReserva } from '@/api/agenda';
 
 // Define el tipo COMPLETO para el contexto que viene de AdminLayout
 type AdminContextType = {
@@ -42,6 +44,10 @@ const AgendaPage = () => {
     const mainCalendarRef = useRef<FullCalendar>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Sidebar abierta por defecto
     const [localLoading, setLocalLoading] = useState(false); // Loading para acciones de esta página
+    const [selectedReservaId, setSelectedReservaId] = useState<number | null>(null);
+    const [reservaDetail, setReservaDetail] = useState<any>(null);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [loadingDetail, setLoadingDetail] = useState(false);
 
     // Reajusta el tamaño del calendario cuando la sidebar cambia
     useEffect(() => {
@@ -53,6 +59,39 @@ const AgendaPage = () => {
         }, 310); // Un poco más del tiempo de la transición CSS
         return () => clearTimeout(timer);
     }, [isSidebarOpen]);
+
+    const handleEventClick = async (info: any) => {
+        const reservaId = parseInt(info.event.id, 10);
+        if (isNaN(reservaId)) {
+            console.error('ID de reserva inválido');
+            return;
+        }
+
+        setSelectedReservaId(reservaId);
+        setIsDetailModalOpen(true);
+        setLoadingDetail(true);
+
+        try {
+            const detail = await getReserva(reservaId);
+            setReservaDetail(detail);
+        } catch (error) {
+            console.error('Error al cargar detalle de reserva:', error);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "No se pudo cargar el detalle de la reserva."
+            });
+            setIsDetailModalOpen(false);
+        } finally {
+            setLoadingDetail(false);
+        }
+    };
+
+    const handleCloseDetailModal = () => {
+        setIsDetailModalOpen(false);
+        setReservaDetail(null);
+        setSelectedReservaId(null);
+    };
 
     // Navega el calendario principal cuando se selecciona una fecha en la sidebar
     const handleDateSelectSidebar = (date: Date) => {
@@ -99,22 +138,10 @@ const AgendaPage = () => {
                 throw new Error("ID de profesional inválido.");
             }
 
-            // --- ¡NECESITAS OBTENER serviceId y slot_id! ---
-            // Asumiendo que modificaste el modal para obtener 'selectedServiceId'
             const serviceId = data.selectedServiceId;
             if (!serviceId) {
                  throw new Error("Debes seleccionar un servicio para crear la cita.");
             }
-
-            // --- Lógica crucial pendiente: Obtener el slot_id ---
-            // La API `/api/agenda/reservas/` requiere un `slot_id` existente y DISPONIBLE.
-            // Necesitas encontrar un Slot en el backend que coincida con:
-            // - `profesional_id`
-            // - `inicio` (debe coincidir exactamente con selectionInfo.startStr)
-            // - `estado` sea 'DISPONIBLE'
-            // Podrías:
-            // A) Llamar a `listSlots` con profesionalId y la fecha, luego buscar en la respuesta el slot cuyo 'inicio' coincida.
-            // B) Crear un nuevo endpoint en Django que reciba (profesionalId, inicio, fin) y devuelva el slot_id si existe y está disponible, o cree uno si la lógica lo permite (esto es más complejo).
 
             // --- Placeholder para slot_id (¡REEMPLAZAR!) ---
             const slotId = await findMatchingSlotId(professionalId, selectionInfo.start); // Necesitas implementar esta función
@@ -253,6 +280,23 @@ const AgendaPage = () => {
                 onConfirm={handleConfirmAppointment} // Llama a la función actualizada
                 selectionInfo={selectionInfo}
             />
+
+            {isDetailModalOpen && (
+                loadingDetail ? (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                        <div className="bg-card p-6 rounded-lg">
+                            <p className="text-foreground">Cargando detalle...</p>
+                        </div>
+                    </div>
+                ) : (
+                    <ReservaDetailModal
+                        isOpen={isDetailModalOpen}
+                        onClose={handleCloseDetailModal}
+                        reserva={reservaDetail}
+                    />
+                )
+            )}
+
         </div>
     );
 };
