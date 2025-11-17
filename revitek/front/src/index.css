@@ -159,37 +159,39 @@ All colors MUST be HSL.
   * {
     @apply border-border;
   }
-
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground;
   }
+}
 
-  /* Custom Revitek Animations */
-  .animate-glow {
-    animation: glow 2s ease-in-out infinite alternate;
+/* --- AÑADE ESTE BLOQUE COMPLETO --- */
+@layer components {
+  /* Forzar el encabezado del calendario principal (AgendaPage) 
+    a que respete el tema oscuro.
+  */
+  .admin-calendar .fc .fc-col-header {
+    /* Usamos el color de fondo de las tarjetas (oscuro) */
+    background-color: hsl(var(--card));
   }
-
-  @keyframes glow {
-    from {
-      box-shadow: 0 0 20px hsl(var(--revitek-yellow) / 0.2);
-    }
-    to {
-      box-shadow: 0 0 30px hsl(var(--revitek-yellow) / 0.4);
-    }
+  
+  .admin-calendar .fc .fc-col-header-cell {
+     /* Usamos el color de borde del tema */
+    border-color: hsl(var(--border));
   }
-
-  .animate-slide-up {
-    animation: slideUp 0.6s ease-out;
+  
+  .admin-calendar .fc .fc-col-header-cell-cushion {
+    /* Usamos el color de texto 'muted' (claro) */
+    color: hsl(var(--muted-foreground)); 
+    padding-top: 0.5rem;    /* Ajuste de padding */
+    padding-bottom: 0.5rem;
   }
-
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(30px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  
+  /* Asegurarnos de que el resto del calendario también use los bordes correctos */
+  .admin-calendar .fc .fc-timegrid-slot,
+  .admin-calendar .fc .fc-timegrid-lane,
+  .admin-calendar .fc .fc-daygrid-day,
+  .admin-calendar .fc .fc-timegrid-slots table,
+  .admin-calendar .fc .fc-timegrid-cols table {
+    border-color: hsl(var(--border));
   }
 }
