@@ -1,3 +1,4 @@
+// revitek/front/src/api/agenda.ts
 import http from "./http";
 
 export interface ReservaCliente {
@@ -14,7 +15,23 @@ export interface ReservaDetallada {
   total_min: number;
   nota: string;
   created_at: string;
-  cliente: ReservaCliente | null; // El cliente puede ser nulo
+  cliente: ReservaCliente | null;
+  vehiculos?: {
+    id: number;
+    patente: string;
+    marca: string;
+    modelo?: string;
+    year?: number;
+  }[];
+  direcciones?: {
+    id: number;
+    alias: string;
+    calle: string;
+    numero: string;
+    comuna: string;
+    ciudad: string;
+    notas_adicionales?: string;
+  }[];
   servicios: {
     servicio_id: number;
     profesional_id: number;
@@ -23,8 +40,8 @@ export interface ReservaDetallada {
   reservaslot: {
     slot_id_inicio: number | null;
     slot_id_fin: number | null;
-    inicio: string | null; // ISO date string
-    fin: string | null;   // ISO date string
+    inicio: string | null;
+    fin: string | null;
     profesional_id: number | null;
   } | null;
   cancelled_by: string | null;
@@ -38,13 +55,29 @@ export async function listSlots(params: { profesionalId?: number; fecha: string 
 }
 
 export async function getAggregatedAvailability(services: number[], fecha: string) {
-  // POST to server-side aggregated availability endpoint
   const { data } = await http.post('/api/agenda/availability', { services, fecha });
   return data;
 }
 
+// TIPO ACTUALIZADO con vehiculo y direccion
 export type ReservaPayload = {
-  cliente?: { nombre?: string; email?: string; telefono?: string };
+  cliente: { 
+    nombre: string; 
+    apellido: string;
+    email: string; 
+    telefono: string;
+  };
+  vehiculo?: {
+    patente: string;
+    marca: string;
+    modelo?: string;
+    year?: number;
+  };
+  direccion?: {
+    direccion_completa: string;
+    alias?: string;
+    comuna?: string;
+  };
   profesional_id: number;
   servicios: { servicio_id: number; profesional_id: number }[];
   slot_id: number;

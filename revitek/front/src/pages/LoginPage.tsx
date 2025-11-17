@@ -1,86 +1,97 @@
-import React, { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth'; // (Asumo que este hook usa tu AuthContext)
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react'; // <-- 1. Importar useState y useEffect
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input'; // Necesitarás un componente Input
-import { Label } from '@/components/ui/label'; // Necesitarás un componente Label
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
 
-const LoginPage = () => {
-    // 1. Traemos la función de login, el estado de carga y el error del contexto
-    const { login, loading, error } = useAuth();
-    const navigate = useNavigate();
 
-    // 2. Estados locales para el formulario
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+export const LoginPage = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  
+  // --- 3. Añadir estado de carga local ---
+  const [isLoggingIn, setIsLoggingIn] = useState(false); 
 
-    // 3. Handler para el envío del formulario
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault(); // Evita que la página se recargue
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login, isAuthenticated } = useAuth();
 
-        try {
-            // Llama a la función de login de AuthProvider con los datos del form
-            await login(email, password);
+  // Definir a dónde redirigir al usuario tras el login
+  const from = location.state?.from?.pathname || '/admin/agenda';
 
-            // Si el login es exitoso (no hay error), redirige al panel de admin
-            navigate('/admin');
+  // --- 4. AÑADIR ESTE useEffect ---
+  // Este es el "detector" que reacciona al cambio de estado de autenticación.
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Si el usuario está autenticado, redirigir a la página de admin
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, from]); // Se ejecuta cada vez que 'isAuthenticated' cambia
 
-        } catch (err) {
-            // El error ya lo maneja el AuthProvider
-            // y se mostrará en la variable 'error'
-            console.error("Fallo el intento de login");
-        }
-    };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
 
-    return (
-        <div className="flex items-center justify-center min-h-screen bg-muted/40">
-            <Card className="w-full max-w-sm">
-                <CardHeader>
-                    <CardTitle className="text-2xl text-center">Panel de Admin</CardTitle>
-                    <CardDescription className="text-center pt-2">
-                        Ingresa tus credenciales para continuar.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {/* 4. Formulario de Login */}
-                    <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                placeholder="admin@revitek.cl"
-                                required
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="password">Contraseña</Label>
-                            <Input
-                                id="password"
-                                type="password"
-                                required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                            />
-                        </div>
+    setIsLoggingIn(true); // <-- 5. Activar el estado de carga
+    try {
+      await login(email, password);
+      // La redirección se manejará automáticamente por el useEffect
+      // La notificación de "éxito" se maneja en AuthContext
+    } catch (error) {
+      console.error("Fallo el login (manejado en AuthContext):", error);
+      // La notificación de "error" se maneja en AuthContext
+    } finally {
+      setIsLoggingIn(false); // <-- 6. Desactivar el estado de carga
+    }
+  };
 
-                        {/* 5. Muestra el error si existe */}
-                        {error && (
-                            <p className="text-sm text-center text-red-500">{error}</p>
-                        )}
-
-                        {/* 6. Botón de envío deshabilitado mientras carga */}
-                        <Button type="submit" className="w-full" disabled={loading}>
-                            {loading ? 'Ingresando...' : 'Entrar'}
-                        </Button>
-                    </form>
-                </CardContent>
-            </Card>
-        </div>
-    );
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-muted/40">
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold">Admin Login</CardTitle>
+          <CardDescription>Inicia sesión para acceder al panel de agenda.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="admin@revitek.cl"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Contraseña</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            {/* --- 7. Modificar el botón --- */}
+            <Button type="submit" className="w-full" disabled={isLoggingIn}>
+              {isLoggingIn ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Iniciando sesión...
+                </>
+              ) : (
+                'Iniciar Sesión'
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
 };
-
-export default LoginPage;
