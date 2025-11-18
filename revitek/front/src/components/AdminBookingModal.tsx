@@ -37,6 +37,8 @@ export interface AdminBookingData {
   nota?: string;
   // Datos para bloqueos
   razonBloqueo?: string;
+  aplicar_a_rango?: boolean;
+  fecha_fin?: string;
   // Horario
   fecha: string;
   hora_inicio: string;
@@ -76,6 +78,8 @@ export const AdminBookingModal = ({
   
   // Fecha y horas con selectores
   const [fecha, setFecha] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
+  const [aplicarRango, setAplicarRango] = useState(false);
   const [horaInicio, setHoraInicio] = useState('09:00');
   const [horaFin, setHoraFin] = useState('10:00');
   
@@ -87,18 +91,24 @@ export const AdminBookingModal = ({
     telefono: ''
   });
   
-  const [vehiculo, setVehiculo] = useState({
+  const [vehiculo, setVehiculo] = useState<{
+    patente: string;
+    marca: string;
+    modelo?: string;
+  }>({
     patente: '',
-    marca: '',
-    modelo: ''
+    marca: ''
   });
   
-  const [direccion, setDireccion] = useState({
+  const [direccion, setDireccion] = useState<{
+    calle: string;
+    numero: string;
+    comuna?: string;
+    ciudad?: string;
+    notas_adicionales?: string;
+  }>({
     calle: '',
-    numero: '',
-    comuna: '',
-    ciudad: '',
-    notas_adicionales: ''
+    numero: ''
   });
   
   const [selectedServices, setSelectedServices] = useState<number[]>([]);
@@ -118,13 +128,15 @@ export const AdminBookingModal = ({
         // Modo edición
         setBookingType(initialData.type);
         setFecha(initialData.fecha);
+        setFechaFin(initialData.fecha_fin || initialData.fecha);
+        setAplicarRango(initialData.aplicar_a_rango || false);
         setHoraInicio(initialData.hora_inicio);
         setHoraFin(initialData.hora_fin);
         
         if (initialData.type === 'appointment') {
           setCliente(initialData.cliente || { nombre: '', apellido: '', email: '', telefono: '' });
-          setVehiculo(initialData.vehiculo || { patente: '', marca: '', modelo: '' });
-          setDireccion(initialData.direccion || { calle: '', numero: '', comuna: '', ciudad: '', notas_adicionales: '' });
+          setVehiculo(initialData.vehiculo || { patente: '', marca: '' });
+          setDireccion(initialData.direccion || { calle: '', numero: '' });
           setSelectedServices(initialData.servicios || []);
           setNota(initialData.nota || '');
         } else {
@@ -133,7 +145,10 @@ export const AdminBookingModal = ({
       } else if (selectionInfo) {
         // Modo creación desde selección en calendario
         const startDate = new Date(selectionInfo.start);
-        setFecha(startDate.toISOString().split('T')[0]);
+        const fechaStr = startDate.toISOString().split('T')[0];
+        setFecha(fechaStr);
+        setFechaFin(fechaStr);
+        setAplicarRango(false);
         setHoraInicio(startDate.getHours().toString().padStart(2, '0') + ':00');
         
         const endDate = new Date(selectionInfo.end);
@@ -142,8 +157,8 @@ export const AdminBookingModal = ({
         // Reset form
         setBookingType('appointment');
         setCliente({ nombre: '', apellido: '', email: '', telefono: '' });
-        setVehiculo({ patente: '', marca: '', modelo: '' });
-        setDireccion({ calle: '', numero: '', comuna: '', ciudad: '', notas_adicionales: '' });
+        setVehiculo({ patente: '', marca: '' });
+        setDireccion({ calle: '', numero: '' });
         setSelectedServices([]);
         setNota('');
         setRazonBloqueo('');
@@ -195,14 +210,14 @@ export const AdminBookingModal = ({
         vehiculo: {
           patente: vehiculo.patente.trim().toUpperCase(),
           marca: vehiculo.marca.trim(),
-          modelo: vehiculo.modelo.trim()
+          modelo: vehiculo.modelo?.trim()
         },
         direccion: {
           calle: direccion.calle.trim(),
           numero: direccion.numero.trim(),
-          comuna: direccion.comuna.trim(),
-          ciudad: direccion.ciudad.trim(),
-          notas_adicionales: direccion.notas_adicionales.trim()
+          comuna: direccion.comuna?.trim(),
+          ciudad: direccion.ciudad?.trim(),
+          notas_adicionales: direccion.notas_adicionales?.trim()
         },
         servicios: selectedServices,
         nota: nota.trim(),
@@ -218,6 +233,8 @@ export const AdminBookingModal = ({
       const data: AdminBookingData = {
         type: 'blocked',
         razonBloqueo: razonBloqueo.trim(),
+        aplicar_a_rango: aplicarRango,
+        fecha_fin: aplicarRango ? fechaFin : fecha,
         fecha,
         hora_inicio: horaInicio,
         hora_fin: horaFin
@@ -281,9 +298,26 @@ export const AdminBookingModal = ({
           {/* Selección de Horario con Selectores */}
           <div className="bg-muted/30 p-4 rounded-lg space-y-3">
             <div className="text-sm font-semibold">📅 Horario</div>
-            <div className="grid grid-cols-3 gap-4">
+            
+            {/* Opción de rango solo para bloqueos */}
+            {bookingType === 'blocked' && (
+              <div className="flex items-center space-x-2 p-3 border rounded-lg bg-background">
+                <input
+                  type="checkbox"
+                  id="aplicar-rango"
+                  checked={aplicarRango}
+                  onChange={(e) => setAplicarRango(e.target.checked)}
+                  className="rounded"
+                />
+                <Label htmlFor="aplicar-rango" className="cursor-pointer text-sm">
+                  Bloquear múltiples días (vacaciones, ausencia prolongada)
+                </Label>
+              </div>
+            )}
+            
+            <div className={`grid gap-4 ${aplicarRango && bookingType === 'blocked' ? 'grid-cols-4' : 'grid-cols-3'}`}>
               <div>
-                <Label htmlFor="fecha">Fecha</Label>
+                <Label htmlFor="fecha">{aplicarRango && bookingType === 'blocked' ? 'Fecha Inicio' : 'Fecha'}</Label>
                 <Input
                   id="fecha"
                   type="date"
@@ -292,6 +326,21 @@ export const AdminBookingModal = ({
                   className="mt-1"
                 />
               </div>
+              
+              {aplicarRango && bookingType === 'blocked' && (
+                <div>
+                  <Label htmlFor="fecha-fin">Fecha Fin</Label>
+                  <Input
+                    id="fecha-fin"
+                    type="date"
+                    value={fechaFin}
+                    onChange={(e) => setFechaFin(e.target.value)}
+                    min={fecha}
+                    className="mt-1"
+                  />
+                </div>
+              )}
+              
               <div>
                 <Label htmlFor="hora-inicio">Hora Inicio</Label>
                 <Select value={horaInicio} onValueChange={setHoraInicio}>
@@ -319,6 +368,13 @@ export const AdminBookingModal = ({
                 </Select>
               </div>
             </div>
+            
+            {aplicarRango && bookingType === 'blocked' && fechaFin && fecha && (
+              <div className="text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 p-2 rounded">
+                ℹ️ Se bloquearán {Math.ceil((new Date(fechaFin).getTime() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24)) + 1} días desde {new Date(fecha).toLocaleDateString('es-CL')} hasta {new Date(fechaFin).toLocaleDateString('es-CL')}
+              </div>
+            )}
+            
             {selectionInfo && (
               <div className="text-sm text-muted-foreground">
                 <strong>Profesional:</strong> {selectionInfo.resource?.title}

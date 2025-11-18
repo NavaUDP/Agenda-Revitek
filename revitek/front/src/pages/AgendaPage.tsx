@@ -12,9 +12,10 @@ import { DateSelectArg, EventApi } from '@fullcalendar/core';
 import { CalendarSidebar } from '../components/CalendarSidebar';
 import { Button } from '@/components/ui/button';
 import { Menu, X } from 'lucide-react';
-import { createReserva, ReservaPayload, createBlock, updateBlock, deleteBlock } from '@/api/agenda';
+import { createReserva, ReservaPayload, createBlock, updateBlock, deleteBlock, listBlocks } from '@/api/agenda';
 import { toast } from "@/components/ui/use-toast";
 import { ReservaDetailModal } from '@/components/ReservaDetailModal';
+import { BlockDetailModal } from '@/components/BlockDetailModal';
 import { getReserva } from '@/api/agenda';
 import http from '@/api/http';
 
@@ -36,11 +37,17 @@ const AgendaPage = () => {
     const mainCalendarRef = useRef<FullCalendar>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [localLoading, setLocalLoading] = useState(false);
+    const [selectedProfessionalId, setSelectedProfessionalId] = useState<string | null>(null);
     const [selectedReservaId, setSelectedReservaId] = useState<number | null>(null);
     const [reservaDetail, setReservaDetail] = useState<any>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [loadingDetail, setLoadingDetail] = useState(false);
     const [availableServices, setAvailableServices] = useState<Array<{ id: number; nombre: string; duracion_min: number }>>([]);
+    
+    // Estados para modal de bloqueos
+    const [selectedBlock, setSelectedBlock] = useState<any>(null);
+    const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+    const [loadingBlock, setLoadingBlock] = useState(false);
 
     // Cargar servicios disponibles al montar
     useEffect(() => {
@@ -70,29 +77,65 @@ const AgendaPage = () => {
     }, [isSidebarOpen]);
 
     const handleEventClick = async (info: any) => {
-        const reservaId = parseInt(info.event.id, 10);
-        if (isNaN(reservaId)) {
-            console.error('ID de reserva inválido');
-            return;
-        }
+        // Verificar si es un bloqueo o una reserva
+        if (info.event.extendedProps.type === 'blocked') {
+            // Es un bloqueo
+            const blockId = info.event.extendedProps.blockId;
+            if (!blockId) {
+                console.error('ID de bloqueo inválido');
+                return;
+            }
 
-        setSelectedReservaId(reservaId);
-        setIsDetailModalOpen(true);
-        setLoadingDetail(true);
+            setIsBlockModalOpen(true);
+            setLoadingBlock(true);
 
-        try {
-            const detail = await getReserva(reservaId);
-            setReservaDetail(detail);
-        } catch (error) {
-            console.error('Error al cargar detalle de reserva:', error);
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "No se pudo cargar el detalle de la reserva."
-            });
-            setIsDetailModalOpen(false);
-        } finally {
-            setLoadingDetail(false);
+            try {
+                // Cargar detalles del bloqueo
+                const blocks = await listBlocks();
+                const blockDetail = blocks.find((b: any) => b.id === blockId);
+                
+                if (blockDetail) {
+                    setSelectedBlock(blockDetail);
+                } else {
+                    throw new Error('Bloqueo no encontrado');
+                }
+            } catch (error) {
+                console.error('Error al cargar detalle de bloqueo:', error);
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: "No se pudo cargar el detalle del bloqueo."
+                });
+                setIsBlockModalOpen(false);
+            } finally {
+                setLoadingBlock(false);
+            }
+        } else {
+            // Es una reserva
+            const reservaId = parseInt(info.event.id, 10);
+            if (isNaN(reservaId)) {
+                console.error('ID de reserva inválido');
+                return;
+            }
+
+            setSelectedReservaId(reservaId);
+            setIsDetailModalOpen(true);
+            setLoadingDetail(true);
+
+            try {
+                const detail = await getReserva(reservaId);
+                setReservaDetail(detail);
+            } catch (error) {
+                console.error('Error al cargar detalle de reserva:', error);
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: "No se pudo cargar el detalle de la reserva."
+                });
+                setIsDetailModalOpen(false);
+            } finally {
+                setLoadingDetail(false);
+            }
         }
     };
 
@@ -100,6 +143,11 @@ const AgendaPage = () => {
         setIsDetailModalOpen(false);
         setReservaDetail(null);
         setSelectedReservaId(null);
+    };
+
+    const handleCloseBlockModal = () => {
+        setIsBlockModalOpen(false);
+        setSelectedBlock(null);
     };
 
     const handleRefreshCalendar = async () => {
@@ -115,6 +163,21 @@ const AgendaPage = () => {
         const calendarApi = mainCalendarRef.current?.getApi();
         if (calendarApi) {
             calendarApi.gotoDate(date);
+        }
+    };
+
+    const handleProfessionalSelect = (professionalId: string | null) => {
+        setSelectedProfessionalId(professionalId);
+        const calendarApi = mainCalendarRef.current?.getApi();
+        if (calendarApi) {
+            // Cambiar vista según selección
+            if (professionalId) {
+                // Vista semanal para profesional individual
+                calendarApi.changeView('timeGridWeek');
+            } else {
+                // Vista diaria con recursos para todos
+                calendarApi.changeView('resourceTimeGridDay');
+            }
         }
     };
 
@@ -135,39 +198,90 @@ const AgendaPage = () => {
 
             if (data.type === 'blocked') {
                 // CREAR BLOQUEO
-                // Construir fechas ISO completas desde fecha + hora
-                const inicioISO = `${data.fecha}T${data.hora_inicio}:00`;
-                const finISO = `${data.fecha}T${data.hora_fin}:00`;
+                if (data.aplicar_a_rango && data.fecha_fin) {
+                    // BLOQUEO MÚLTIPLE (varios días)
+                    const fechaInicio = new Date(data.fecha);
+                    const fechaFin = new Date(data.fecha_fin);
+                    const bloqueosCreados = [];
+                    
+                    // Iterar sobre cada día del rango
+                    for (let currentDate = new Date(fechaInicio); currentDate <= fechaFin; currentDate.setDate(currentDate.getDate() + 1)) {
+                        const fechaStr = currentDate.toISOString().split('T')[0];
+                        const inicioISO = `${fechaStr}T${data.hora_inicio}:00`;
+                        const finISO = `${fechaStr}T${data.hora_fin}:00`;
 
-                const blockResponse = await createBlock({
-                    profesional: professionalId,
-                    fecha: data.fecha,
-                    inicio: inicioISO,
-                    fin: finISO,
-                    razon: data.razonBloqueo
-                });
+                        try {
+                            const blockResponse = await createBlock({
+                                profesional: professionalId,
+                                fecha: fechaStr,
+                                inicio: inicioISO,
+                                fin: finISO,
+                                razon: data.razonBloqueo
+                            });
 
-                toast({ 
-                    title: "Horario Bloqueado", 
-                    description: `Bloqueo creado exitosamente.` 
-                });
+                            bloqueosCreados.push(blockResponse);
 
-                // Agregar eventos visuales de bloqueo al calendario
-                const newBlockedEvent = {
-                    id: `block_${blockResponse.id}`,
-                    title: `🚫 ${data.razonBloqueo || 'Bloqueado'}`,
-                    start: inicioISO,
-                    end: finISO,
-                    resourceId: selectionInfo.resource.id,
-                    backgroundColor: '#ef4444',
-                    borderColor: '#dc2626',
-                    extendedProps: { 
-                        type: 'blocked',
-                        blockId: blockResponse.id,
-                        razon: data.razonBloqueo
+                            // Agregar evento visual al calendario
+                            const newBlockedEvent = {
+                                id: `block_${blockResponse.id}`,
+                                title: `🚫 ${data.razonBloqueo || 'Bloqueado'}`,
+                                start: inicioISO,
+                                end: finISO,
+                                resourceId: selectionInfo.resource.id,
+                                backgroundColor: '#ef4444',
+                                borderColor: '#dc2626',
+                                extendedProps: { 
+                                    type: 'blocked',
+                                    blockId: blockResponse.id,
+                                    razon: data.razonBloqueo
+                                }
+                            };
+                            setEvents(prevEvents => [...prevEvents, newBlockedEvent]);
+                        } catch (error) {
+                            console.error(`Error bloqueando fecha ${fechaStr}:`, error);
+                        }
                     }
-                };
-                setEvents(prevEvents => [...prevEvents, newBlockedEvent]);
+
+                    const diasBloqueados = bloqueosCreados.length;
+                    toast({ 
+                        title: "Horarios Bloqueados", 
+                        description: `${diasBloqueados} día${diasBloqueados !== 1 ? 's' : ''} bloqueado${diasBloqueados !== 1 ? 's' : ''} exitosamente (${new Date(data.fecha).toLocaleDateString('es-CL')} - ${new Date(data.fecha_fin).toLocaleDateString('es-CL')})` 
+                    });
+                } else {
+                    // BLOQUEO SIMPLE (un solo día)
+                    const inicioISO = `${data.fecha}T${data.hora_inicio}:00`;
+                    const finISO = `${data.fecha}T${data.hora_fin}:00`;
+
+                    const blockResponse = await createBlock({
+                        profesional: professionalId,
+                        fecha: data.fecha,
+                        inicio: inicioISO,
+                        fin: finISO,
+                        razon: data.razonBloqueo
+                    });
+
+                    toast({ 
+                        title: "Horario Bloqueado", 
+                        description: `Bloqueo creado exitosamente.` 
+                    });
+
+                    // Agregar evento visual de bloqueo al calendario
+                    const newBlockedEvent = {
+                        id: `block_${blockResponse.id}`,
+                        title: `🚫 ${data.razonBloqueo || 'Bloqueado'}`,
+                        start: inicioISO,
+                        end: finISO,
+                        resourceId: selectionInfo.resource.id,
+                        backgroundColor: '#ef4444',
+                        borderColor: '#dc2626',
+                        extendedProps: { 
+                            type: 'blocked',
+                            blockId: blockResponse.id,
+                            razon: data.razonBloqueo
+                        }
+                    };
+                    setEvents(prevEvents => [...prevEvents, newBlockedEvent]);
+                }
 
             } else {
                 // CREAR CITA (RESERVA)
@@ -191,7 +305,11 @@ const AgendaPage = () => {
                     profesional_id: professionalId,
                     cliente: data.cliente!,
                     vehiculo: data.vehiculo,
-                    direccion: data.direccion,
+                    direccion: data.direccion ? {
+                        direccion_completa: `${data.direccion.calle} ${data.direccion.numero}${data.direccion.notas_adicionales ? ', ' + data.direccion.notas_adicionales : ''}`,
+                        alias: data.direccion.comuna || undefined,
+                        comuna: data.direccion.comuna || undefined
+                    } : undefined,
                     servicios: data.servicios.map(sid => ({ 
                         servicio_id: sid, 
                         profesional_id: professionalId 
@@ -256,11 +374,26 @@ const AgendaPage = () => {
         }
     }
 
+    // Filtrar eventos según profesional seleccionado
+    const filteredEvents = selectedProfessionalId
+        ? events.filter(event => event.resourceId === selectedProfessionalId)
+        : events;
+
+    // Filtrar recursos según profesional seleccionado
+    const filteredResources = selectedProfessionalId
+        ? resources.filter(resource => resource.id === selectedProfessionalId)
+        : resources;
+
     return (
         <div className="flex h-[calc(100vh-4rem)] admin-calendar">
             <aside className={`transition-all duration-300 ease-in-out bg-card border-r border-border flex-shrink-0 overflow-hidden ${isSidebarOpen ? 'w-72' : 'w-0'}`}>
                 <div className="w-72 h-full">
-                    <CalendarSidebar onDateSelect={handleDateSelectSidebar} resources={resources} />
+                    <CalendarSidebar 
+                        onDateSelect={handleDateSelectSidebar} 
+                        resources={resources}
+                        selectedProfessionalId={selectedProfessionalId}
+                        onProfessionalSelect={handleProfessionalSelect}
+                    />
                 </div>
             </aside>
 
@@ -279,12 +412,12 @@ const AgendaPage = () => {
                     {!initialLoading && (
                         <FullCalendar
                             ref={mainCalendarRef}
-                            plugins={[resourceTimeGridPlugin, dayGridPlugin, interactionPlugin]}
+                            plugins={[resourceTimeGridPlugin, dayGridPlugin, timeGridPlugin, interactionPlugin]}
                             schedulerLicenseKey="GPL-My-Project-Is-Open-Source"
                             headerToolbar={{
                                 left: 'prev,next today',
                                 center: 'title',
-                                right: 'resourceTimeGridDay,timeGridWeek,dayGridMonth'
+                                right: selectedProfessionalId ? '' : 'dayGridMonth'
                             }}
                             initialView="resourceTimeGridDay"
                             initialDate={currentDate}
@@ -293,8 +426,8 @@ const AgendaPage = () => {
                             slotMinTime="08:00:00"
                             slotMaxTime="19:00:00"
                             allDaySlot={false}
-                            resources={resources}
-                            events={events}
+                            resources={filteredResources}
+                            events={filteredEvents}
                             selectable={true}
                             editable={true}
                             eventStartEditable={false}
@@ -334,6 +467,23 @@ const AgendaPage = () => {
                         isOpen={isDetailModalOpen}
                         onClose={handleCloseDetailModal}
                         reserva={reservaDetail}
+                        onRefreshCalendar={handleRefreshCalendar}
+                    />
+                )
+            )}
+
+            {isBlockModalOpen && (
+                loadingBlock ? (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                        <div className="bg-card p-6 rounded-lg">
+                            <p className="text-foreground">Cargando bloqueo...</p>
+                        </div>
+                    </div>
+                ) : (
+                    <BlockDetailModal
+                        isOpen={isBlockModalOpen}
+                        onClose={handleCloseBlockModal}
+                        block={selectedBlock}
                         onRefreshCalendar={handleRefreshCalendar}
                     />
                 )
