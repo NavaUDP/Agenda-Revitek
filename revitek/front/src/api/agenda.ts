@@ -98,3 +98,40 @@ export async function listReservas(): Promise<ReservaDetallada[]> {
   const { data } = await http.get("/api/agenda/reservas/");
   return data;
 }
+
+export async function cancelReserva(id: number): Promise<{ id: number; estado: string }> {
+  const { data } = await http.post(`/api/agenda/reserva/${id}/cancel/`, { by: 'admin' });
+  return data;
+}
+
+// ===== MANEJO DE BLOQUEOS (SlotBlock) =====
+
+export interface SlotBlockData {
+  id?: number;
+  profesional: number;
+  fecha: string; // YYYY-MM-DD
+  inicio: string; // ISO datetime
+  fin: string;    // ISO datetime
+  razon?: string;
+  profesional_nombre?: string;
+  created_at?: string;
+}
+
+export async function listBlocks(params?: { fecha?: string; profesional_id?: number }): Promise<SlotBlockData[]> {
+  const { data } = await http.get("/api/agenda/blocks", { params });
+  return data;
+}
+
+export async function createBlock(payload: Omit<SlotBlockData, 'id' | 'created_at' | 'profesional_nombre'>): Promise<SlotBlockData> {
+  const { data } = await http.post("/api/agenda/blocks/create", payload);
+  return data;
+}
+
+export async function updateBlock(id: number, payload: Partial<SlotBlockData>): Promise<SlotBlockData> {
+  const { data } = await http.put(`/api/agenda/blocks/${id}/update`, payload);
+  return data;
+}
+
+export async function deleteBlock(id: number): Promise<void> {
+  await http.delete(`/api/agenda/blocks/${id}/delete`);
+}

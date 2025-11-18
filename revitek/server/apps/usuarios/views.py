@@ -26,7 +26,7 @@ class VehiculoViewSet(viewsets.ModelViewSet):
         # Esta vista solo devuelve los vehiculos del usuario actual.
         return Vehiculo.objects.filter(propietario=self.request.user)
 
-    def perfotm_create(self, serializer):
+    def perform_create(self, serializer):
         # asigna automaticamente al usuario logeado como propietario
         serializer.save(propietario=self.request.user)
 
