@@ -1,11 +1,11 @@
-// ... (importaciones existentes) ...
 import { useState, useEffect } from 'react';
-import { listAllServicios, createServicio /*, updateServicio, deleteServicio*/ } from '@/api/servicios';
+import { listAllServicios, createServicio, updateServicio, deleteServicio, type ServicioPayload } from '@/api/servicios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trash2, Edit, PlusCircle } from 'lucide-react';
-import { useToast } from "@/components/ui/use-toast"; // Cambiado desde @/hooks/use-toast si es necesario
+import { useToast } from "@/components/ui/use-toast"; 
+
 
 interface Servicio {
     id: number;
@@ -25,8 +25,9 @@ const AdminServicesPage = () => {
     const [newServicePrice, setNewServicePrice] = useState(''); // <-- Nuevo estado para precio
     const { toast } = useToast();
 
+    const [editingId, setEditingId] = useState<number | null>(null);
+
     const fetchServicios = async () => {
-        // ... (sin cambios) ...
         setLoading(true);
         setError(null);
         try {
@@ -44,58 +45,86 @@ const AdminServicesPage = () => {
         fetchServicios();
     }, []);
 
-    const handleAddService = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        const name = newServiceName.trim();
-        const duration = parseInt(newServiceDuration, 10);
-        const price = parseInt(newServicePrice, 10); // <-- Obtener precio
+    const resetForm = () => {
+        setNewServiceName('');
+        setNewServiceDuration('');
+        setNewServicePrice('');
+        setEditingId(null);
+    };
 
-        // Validar también el precio
-        if (!name || isNaN(duration) || duration <= 0 || isNaN(price) || price < 0) {
+    const handleSubmitService = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        const nombre = newServiceName.trim();
+        const duracion_min = parseInt(newServiceDuration, 10);
+        const precio = parseInt(newServicePrice, 10);
+
+        if (!nombre || isNaN(duracion_min) || duracion_min <= 0 || isNaN(precio) || precio < 0) {
             toast({ title: "Error", description: "Nombre, duración positiva y precio (>=0) son requeridos.", variant: "destructive" });
             return;
         }
 
+        // Usamos nuestro tipo de payload
+        const payload: ServicioPayload = { nombre, duracion_min, precio };
         setLoading(true);
-        try {
-            // Incluir precio en el payload (asegúrate que createServicio lo acepte)
-            await createServicio({ nombre: name, duracion_min: duration, precio: price }); // Descomenta cuando esté la API
-            toast({ title: "Éxito", description: `Servicio "${name}" añadido.` });
-            setNewServiceName('');
-            setNewServiceDuration('');
-            setNewServicePrice(''); 
-            fetchServicios(); 
 
-        } catch (err) {
-            toast({ title: "Error", description: "No se pudo añadir el servicio.", variant: "destructive" });
+        try {
+            if (editingId) {
+                // --- LÓGICA DE ACTUALIZAR ---
+                await updateServicio(editingId, payload);
+                toast({ title: "Éxito", description: `Servicio "${nombre}" actualizado.` });
+            } else {
+                // --- LÓGICA DE CREAR ---
+                await createServicio(payload);
+                toast({ title: "Éxito", description: `Servicio "${nombre}" añadido.` });
+            }
+            resetForm(); // Limpiamos el formulario
+            fetchServicios(); // Recargamos la lista
+
+        } catch (err: any) {
+            const errorMsg = err?.response?.data?.nombre?.[0] || (editingId ? 'actualizar' : 'añadir');
+            toast({ 
+                title: "Error", 
+                description: `No se pudo ${editingId ? 'actualizar' : 'añadir'} el servicio. ${errorMsg}`, 
+                variant: "destructive" 
+            });
             console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
-    // ... (handleDeleteService y handleEditService sin cambios relevantes ahora) ...
-     const handleDeleteService = async (id: number, name: string) => {
-        if (!confirm(`¿Estás seguro de eliminar el servicio "${name}"?`)) {
+    // 5. ACTUALIZAMOS EL HANDLER DE ELIMINAR (para que use la API real)
+    const handleDeleteService = async (id: number, name: string) => {
+        if (!confirm(`¿Estás seguro de eliminar el servicio "${name}"? Esta acción no se puede deshacer.`)) {
             return;
         }
         setLoading(true);
         try {
-            // await deleteServicio(id); // Descomenta cuando esté la API
-            toast({ title: "Éxito", description: `Servicio "${name}" eliminado (simulado).` });
-            // fetchServicios(); // Vuelve a cargar la lista
-            // Simulación:
-            setServicios(prev => prev.filter(s => s.id !== id));
+            await deleteServicio(id); // <-- USANDO API REAL
+            toast({ title: "Éxito", description: `Servicio "${name}" eliminado.` });
+            fetchServicios(); // Vuelve a cargar la lista
+            
+            // Si estábamos editando el servicio que se borró, limpiamos el form
+            if (editingId === id) {
+                resetForm();
+            }
         } catch (err) {
-            toast({ title: "Error", description: "No se pudo eliminar el servicio.", variant: "destructive" });
+            toast({ title: "Error", description: "No se pudo eliminar el servicio. Es posible que esté asignado a un profesional.", variant: "destructive" });
             console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleEditService = (id: number) => {
-         toast({ title: "Info", description: `Editar servicio ID ${id} (no implementado).` });
+    // 6. ACTUALIZAMOS EL HANDLER DE EDITAR (para poblar el formulario)
+    const handleEditService = (servicio: Servicio) => {
+         setEditingId(servicio.id);
+         setNewServiceName(servicio.nombre);
+         setNewServiceDuration(String(servicio.duracion_min));
+         setNewServicePrice(String(servicio.precio));
+         
+         // Opcional: hacer scroll hacia el formulario
+         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
 
@@ -103,17 +132,19 @@ const AdminServicesPage = () => {
         <div className="p-6">
             <h1 className="text-3xl font-bold text-foreground mb-8">Gestionar Servicios</h1>
 
-            <div className={`grid grid-cols-1 md:grid-cols-2 gap-8 ${loading ? 'opacity-50' : ''}`}>
-                {/* Columna para añadir */}
+            <div className={`grid grid-cols-1 md:grid-cols-2 gap-8 ${loading && !editingId ? 'opacity-50' : ''}`}>
+                {/* Columna para añadir/editar */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center">
                             <PlusCircle className="h-5 w-5 mr-2" />
-                            Añadir Nuevo Servicio
+                            {/* 7. TÍTULO DINÁMICO */}
+                            {editingId ? 'Editar Servicio' : 'Añadir Nuevo Servicio'}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <form onSubmit={handleAddService} className="space-y-4">
+                        {/* 8. APUNTAMOS AL NUEVO HANDLER */}
+                        <form onSubmit={handleSubmitService} className="space-y-4">
                             <Input
                                 name="serviceName"
                                 placeholder="Nombre del servicio"
@@ -132,7 +163,6 @@ const AdminServicesPage = () => {
                                 min="1"
                                 disabled={loading}
                             />
-                            {/* ----- INICIO NUEVO INPUT PRECIO ----- */}
                             <Input
                                 name="servicePrice"
                                 type="number"
@@ -140,13 +170,21 @@ const AdminServicesPage = () => {
                                 value={newServicePrice}
                                 onChange={(e) => setNewServicePrice(e.target.value)}
                                 required
-                                min="0" // O 1 si no quieres precios gratis
+                                min="0" 
                                 disabled={loading}
                             />
-                            {/* ----- FIN NUEVO INPUT PRECIO ----- */}
-                            <Button type="submit" disabled={loading}>
-                                {loading ? 'Añadiendo...' : 'Añadir Servicio'}
-                            </Button>
+                            
+                            {/* 9. BOTONES DINÁMICOS */}
+                            <div className="flex space-x-2">
+                                <Button type="submit" disabled={loading} className="flex-1">
+                                    {loading ? 'Guardando...' : (editingId ? 'Actualizar Servicio' : 'Añadir Servicio')}
+                                </Button>
+                                {editingId && (
+                                    <Button variant="outline" type="button" onClick={resetForm} disabled={loading}>
+                                        Cancelar Edición
+                                    </Button>
+                                )}
+                            </div>
                         </form>
                     </CardContent>
                 </Card>
@@ -157,7 +195,6 @@ const AdminServicesPage = () => {
                         <CardTitle>Lista de Servicios</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {/* ... (estados de carga y error) ... */}
                         {loading && !servicios.length && <p>Cargando servicios...</p>}
                         {error && <p className="text-destructive">{error}</p>}
                         {!loading && !error && servicios.length === 0 && (
@@ -168,14 +205,13 @@ const AdminServicesPage = () => {
                                 <li key={s.id} className="flex justify-between items-center p-3 bg-muted rounded-md">
                                     <div>
                                         <span className="font-medium">{s.nombre}</span>
-                                        {/* ----- INICIO MOSTRAR PRECIO ----- */}
                                         <span className="text-sm text-muted-foreground ml-2">
-                                            ({s.duracion_min} min / ${s.precio?.toLocaleString('es-CL') ?? 'N/A'}) {/* Formato chileno */}
+                                            ({s.duracion_min} min / ${s.precio?.toLocaleString('es-CL') ?? 'N/A'})
                                         </span>
-                                         {/* ----- FIN MOSTRAR PRECIO ----- */}
                                     </div>
                                     <div className="flex space-x-1">
-                                         <Button variant="ghost" size="icon" onClick={() => handleEditService(s.id)} disabled={loading} title="Editar">
+                                         {/* 10. CONECTAMOS LOS BOTONES DE LA LISTA */}
+                                         <Button variant="ghost" size="icon" onClick={() => handleEditService(s)} disabled={loading} title="Editar">
                                             <Edit className="h-4 w-4 text-blue-500" />
                                         </Button>
                                         <Button variant="ghost" size="icon" onClick={() => handleDeleteService(s.id, s.nombre)} disabled={loading} title="Eliminar">

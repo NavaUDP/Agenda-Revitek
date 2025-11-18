@@ -159,37 +159,91 @@ All colors MUST be HSL.
   * {
     @apply border-border;
   }
-
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground;
+  }
+}
+
+/* --- AÑADE ESTE BLOQUE COMPLETO --- */
+@layer components {
+  /* Forzar el encabezado del calendario principal (AgendaPage) 
+    a que respete el tema oscuro.
+  */
+  .admin-calendar .fc .fc-col-header {
+    /* Usamos el color de fondo de las tarjetas (oscuro) */
+    background-color: hsl(var(--card));
+  }
+  
+  .admin-calendar .fc .fc-col-header-cell {
+     /* Usamos el color de borde del tema */
+    border-color: hsl(var(--border));
+  }
+  
+  .admin-calendar .fc .fc-col-header-cell-cushion {
+    /* Usamos el color de texto 'muted' (claro) */
+    color: hsl(var(--muted-foreground)); 
+    padding-top: 0.5rem;    /* Ajuste de padding */
+    padding-bottom: 0.5rem;
+  }
+  
+  /* Asegurarnos de que el resto del calendario también use los bordes correctos */
+  .admin-calendar .fc .fc-timegrid-slot,
+  .admin-calendar .fc .fc-timegrid-lane,
+  .admin-calendar .fc .fc-daygrid-day,
+  .admin-calendar .fc .fc-timegrid-slots table,
+  .admin-calendar .fc .fc-timegrid-cols table {
+    border-color: hsl(var(--border));
   }
 
-  /* Custom Revitek Animations */
-  .animate-glow {
-    animation: glow 2s ease-in-out infinite alternate;
+  /* Estilos para el sidebar del calendario */
+  .sidebar-calendar {
+    /* Mini calendario más compacto */
   }
 
-  @keyframes glow {
-    from {
-      box-shadow: 0 0 20px hsl(var(--revitek-yellow) / 0.2);
-    }
-    to {
-      box-shadow: 0 0 30px hsl(var(--revitek-yellow) / 0.4);
-    }
+  .sidebar-calendar .fc {
+    font-size: 0.85rem;
   }
 
-  .animate-slide-up {
-    animation: slideUp 0.6s ease-out;
+  .sidebar-calendar .fc-toolbar-title {
+    font-size: 0.9rem;
+    font-weight: 600;
   }
 
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(30px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  .sidebar-calendar .fc .fc-button {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  .sidebar-calendar .fc .fc-daygrid-day-number {
+    font-size: 0.75rem;
+    padding: 0.15rem;
+  }
+
+  .sidebar-calendar .fc .fc-col-header-cell {
+    padding: 0.25rem 0;
+  }
+
+  .sidebar-calendar .fc .fc-daygrid-day {
+    min-height: 2rem;
+  }
+
+  .sidebar-calendar .fc .fc-daygrid-day-frame {
+    min-height: 2rem;
+  }
+
+  /* Hover effects para días del sidebar */
+  .sidebar-calendar .fc .fc-daygrid-day:hover {
+    background-color: hsl(var(--muted));
+    transition: background-color 0.2s ease;
+  }
+
+  /* Día seleccionado en el sidebar */
+  .sidebar-calendar .fc .fc-day-today {
+    background-color: hsla(var(--primary), 0.1) !important;
+  }
+
+  .sidebar-calendar .fc .fc-day-today .fc-daygrid-day-number {
+    color: hsl(var(--primary));
+    font-weight: 700;
   }
 }

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Servicio, ProfesionalServicio
-from apps.profesionales.serializers import Profesional
+from apps.profesionales.models import Profesional
 
 
 class ServicioSerializer(serializers.ModelSerializer):

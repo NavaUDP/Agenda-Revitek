@@ -17,10 +17,8 @@ http.interceptors.request.use(
   (config) => {
     try {
       const token = localStorage.getItem('access_token');
-      if (token) {
-        // config.headers = config.headers || {}; // <-- LÍNEA INCORRECTA (ELIMINADA)
-        
-        // Simplemente verificamos y asignamos directamente
+      if (token && config.headers) {
+        // Verificamos y asignamos directamente
         if (!config.headers.Authorization) {
           config.headers.Authorization = `Bearer ${token}`;
         }

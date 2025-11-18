@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react"; // Añade useEffect
+import { useState, useEffect } from "react";
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { Calendar, Users, Home, Wrench, UsersRound } from 'lucide-react';
 import { listProfesionales } from '@/api/profesionales';
 import { listReservas, ReservaDetallada } from "@/api/agenda";
 import { toast } from "@/components/ui/use-toast";
+import http from '@/api/http';
 
 type CalendarResource = {
   id: string;
@@ -18,6 +19,7 @@ type CalendarEvent = {
     end: string;
     backgroundColor: string;
     borderColor: string;
+    display?: 'background' | 'auto';
     extendedProps: {
         type: 'appointment' | 'blocked';
         client: string;
@@ -29,19 +31,17 @@ function transformReservasToEvents(reservas: ReservaDetallada[]): CalendarEvent[
     const events: CalendarEvent[] = [];
     
     for (const reserva of reservas) {
-        // Solo procesamos reservas que tengan slots válidos
         if (!reserva.reservaslot || !reserva.reservaslot.inicio || !reserva.reservaslot.fin || !reserva.reservaslot.profesional_id) {
             continue;
         }
 
-        // Determinar título y color
         let title = reserva.cliente?.nombre || 'Cliente Anónimo';
-        let backgroundColor = '#3b82f6'; // Azul por defecto
+        let backgroundColor = '#3b82f6';
         let borderColor = '#2563eb';
 
         if (reserva.estado === 'CANCELADO') {
             title = `(CANCELADO) ${title}`;
-            backgroundColor = '#6b7280'; // Gris
+            backgroundColor = '#6b7280';
             borderColor = '#4b5563';
         }
 
@@ -63,32 +63,59 @@ function transformReservasToEvents(reservas: ReservaDetallada[]): CalendarEvent[
     return events;
 }
 
+async function loadBlockedSlots(): Promise<CalendarEvent[]> {
+    try {
+        // Cargar todos los bloqueos desde la tabla SlotBlock
+        const { data } = await http.get('/api/agenda/blocks');
+        
+        const blockedEvents: CalendarEvent[] = data.map((block: any) => ({
+            id: `block_${block.id}`,
+            resourceId: String(block.profesional),
+            title: `🚫 ${block.razon || 'Bloqueado'}`,
+            start: block.inicio,
+            end: block.fin,
+            backgroundColor: '#ef4444',
+            borderColor: '#dc2626',
+            extendedProps: {
+                type: 'blocked',
+                client: '',
+                reservaId: 0,
+                blockId: block.id,
+                razon: block.razon
+            }
+        }));
+        
+        return blockedEvents;
+    } catch (error) {
+        console.error('Error loading blocked slots:', error);
+        return [];
+    }
+}
+
 export const AdminLayout = () => {
     const [resources, setResources] = useState<CalendarResource[]>([]);
-    // --- 5. Inicializar 'events' como un array vacío ---
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         setLoading(true);
         
-        // --- 6. Cargar Profesionales (Recursos) y Reservas (Eventos) en paralelo ---
         Promise.all([
             listProfesionales(),
-            listReservas()
+            listReservas(),
+            loadBlockedSlots()
         ])
-        .then(([profData, reservaData]) => {
+        .then(([profData, reservaData, blockedData]) => {
             
-            // Procesar Profesionales
             const formattedResources: CalendarResource[] = profData.map(prof => ({
                 id: String(prof.id),
                 title: prof.nombre
             }));
             setResources(formattedResources);
 
-            // Procesar Reservas
-            const formattedEvents = transformReservasToEvents(reservaData);
-            setEvents(formattedEvents);
+            const appointmentEvents = transformReservasToEvents(reservaData);
+            const allEvents = [...appointmentEvents, ...blockedData];
+            setEvents(allEvents);
 
         })
         .catch(error => {
@@ -101,7 +128,7 @@ export const AdminLayout = () => {
         })
         .finally(() => setLoading(false));
 
-    }, []); // El array vacío asegura que se ejecute solo una vez
+    }, []);
 
     const contextValue = { resources, setResources, events, setEvents, loading };
 
