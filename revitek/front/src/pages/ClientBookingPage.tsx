@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { listAllServicios } from '@/api/servicios';
 import { getAggregatedAvailability, createReserva, ReservaPayload } from '@/api/agenda';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 // Tipos para el formulario
 interface FormularioReserva {
@@ -49,6 +49,10 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
     const [showForm, setShowForm] = useState(false);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Partial<FormularioReserva>>({});
+    
+    // Refs para scroll
+    const formularioRef = useRef<HTMLDivElement>(null);
+    const selectorHorariosRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -110,7 +114,10 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
     const handleSelectSlot = (slot: any) => {
         setSelectedSlot(slot);
         setShowForm(true);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // Hacer scroll al formulario después de un pequeño delay para que se renderice
+        setTimeout(() => {
+            formularioRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
     };
 
     // Confirmar reserva
@@ -262,7 +269,7 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
         <div className="p-4 bg-card rounded border border-border">
             {/* FORMULARIO DE DATOS */}
             {showForm && selectedSlot && (
-                <Card className="mb-6 border-2 border-primary">
+                <Card ref={formularioRef} className="mb-6 border-2 border-primary">
                     <CardHeader>
                         <CardTitle className="flex items-center justify-between">
                             <span>📋 Completa tus datos para confirmar la reserva</span>
@@ -421,7 +428,7 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
 
             {/* SELECTOR DE FECHA Y HORARIOS */}
             {!showForm && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                <div ref={selectorHorariosRef} className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
                     <div className="col-span-1">
                         <div className="p-4 bg-background rounded border border-border">
                             <div className="flex items-center justify-between mb-3">
@@ -531,6 +538,27 @@ function ServicesArea() {
         setSelectedServices((prev) => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
     };
 
+    const handleContinueToBooking = () => {
+        setActiveBookingServices([...selectedServices]);
+        // Hacer scroll al componente de reserva después de un delay para que se renderice
+        setTimeout(() => {
+            const bookingElement = document.getElementById('booking-component');
+            if (bookingElement) {
+                bookingElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 100);
+    };
+
+    const handleScheduleService = (serviceId: number) => {
+        setActiveBookingServices([serviceId]);
+        setTimeout(() => {
+            const bookingElement = document.getElementById('booking-component');
+            if (bookingElement) {
+                bookingElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 100);
+    };
+
     return (
         <div>
             {selectedServices.length > 0 && (
@@ -544,7 +572,7 @@ function ServicesArea() {
                         })}
                     </div>
                     <div>
-                        <Button onClick={() => { setActiveBookingServices([...selectedServices]); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                        <Button onClick={handleContinueToBooking}>
                             Continuar a reserva
                         </Button>
                     </div>
@@ -606,7 +634,7 @@ function ServicesArea() {
 
                                             <div className="mt-auto flex justify-end">
                                                 <Button 
-                                                    onClick={() => { setActiveBookingServices([s.id]); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
+                                                    onClick={() => handleScheduleService(s.id)} 
                                                     className="bg-emerald-500"
                                                 >
                                                     Agendar servicio
@@ -645,7 +673,7 @@ function ServicesArea() {
             })()}
 
             {activeBookingServices && (
-                <div className="mt-6">
+                <div id="booking-component" className="mt-6">
                     <ServiceBooking selectedServiceIdsProp={activeBookingServices} onClose={() => setActiveBookingServices(null)} />
                 </div>
             )}

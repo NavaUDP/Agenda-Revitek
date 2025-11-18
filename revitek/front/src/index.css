@@ -194,4 +194,56 @@ All colors MUST be HSL.
   .admin-calendar .fc .fc-timegrid-cols table {
     border-color: hsl(var(--border));
   }
+
+  /* Estilos para el sidebar del calendario */
+  .sidebar-calendar {
+    /* Mini calendario más compacto */
+  }
+
+  .sidebar-calendar .fc {
+    font-size: 0.85rem;
+  }
+
+  .sidebar-calendar .fc-toolbar-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .sidebar-calendar .fc .fc-button {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  .sidebar-calendar .fc .fc-daygrid-day-number {
+    font-size: 0.75rem;
+    padding: 0.15rem;
+  }
+
+  .sidebar-calendar .fc .fc-col-header-cell {
+    padding: 0.25rem 0;
+  }
+
+  .sidebar-calendar .fc .fc-daygrid-day {
+    min-height: 2rem;
+  }
+
+  .sidebar-calendar .fc .fc-daygrid-day-frame {
+    min-height: 2rem;
+  }
+
+  /* Hover effects para días del sidebar */
+  .sidebar-calendar .fc .fc-daygrid-day:hover {
+    background-color: hsl(var(--muted));
+    transition: background-color 0.2s ease;
+  }
+
+  /* Día seleccionado en el sidebar */
+  .sidebar-calendar .fc .fc-day-today {
+    background-color: hsla(var(--primary), 0.1) !important;
+  }
+
+  .sidebar-calendar .fc .fc-day-today .fc-daygrid-day-number {
+    color: hsl(var(--primary));
+    font-weight: 700;
+  }
 }
