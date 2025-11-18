@@ -7,56 +7,65 @@ import { useOutletContext } from 'react-router-dom';
 import interactionPlugin from '@fullcalendar/interaction';
 import esLocale from '@fullcalendar/core/locales/es';
 import resourceTimeGridPlugin from '@fullcalendar/resource-timegrid';
-import { AppointmentModal, AppointmentData } from '@/components/AppointmentModal';
+import { AdminBookingModal, AdminBookingData } from '@/components/AdminBookingModal';
 import { DateSelectArg, EventApi } from '@fullcalendar/core';
 import { CalendarSidebar } from '../components/CalendarSidebar';
 import { Button } from '@/components/ui/button';
 import { Menu, X } from 'lucide-react';
-import { createReserva, ReservaPayload } from '@/api/agenda'; // Importa la función API y el tipo Payload
-import { toast } from "@/components/ui/use-toast"; // Para mostrar notificaciones
+import { createReserva, ReservaPayload, createBlock, updateBlock, deleteBlock } from '@/api/agenda';
+import { toast } from "@/components/ui/use-toast";
 import { ReservaDetailModal } from '@/components/ReservaDetailModal';
 import { getReserva } from '@/api/agenda';
+import http from '@/api/http';
 
-// Define el tipo COMPLETO para el contexto que viene de AdminLayout
 type AdminContextType = {
     resources: { id: string; title: string; }[];
     setResources: React.Dispatch<React.SetStateAction<{ id: string; title: string; }[]>>;
-    events: any[]; // Mantenemos any[] por ahora
+    events: any[];
     setEvents: React.Dispatch<React.SetStateAction<any[]>>;
     loading: boolean;
 };
 
-// Extiende AppointmentData para incluir el ID del servicio si lo añades al modal
-interface AppointmentDataExtended extends AppointmentData {
-    selectedServiceId?: number; // Opcional: añade esto si modificas el modal
-    // Podrías añadir campos de cliente aquí también: clientName?: string, clientEmail?: string, etc.
-}
-
-
 const AgendaPage = () => {
-    // Accede al contexto completo
     const context = useOutletContext<AdminContextType>();
-    const { resources, events, setEvents, loading: initialLoading } = context; // Desestructura después
+    const { resources, events, setEvents, loading: initialLoading } = context;
 
     const [currentDate, setCurrentDate] = useState(new Date());
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectionInfo, setSelectionInfo] = useState<DateSelectArg | null>(null);
     const mainCalendarRef = useRef<FullCalendar>(null);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Sidebar abierta por defecto
-    const [localLoading, setLocalLoading] = useState(false); // Loading para acciones de esta página
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [localLoading, setLocalLoading] = useState(false);
     const [selectedReservaId, setSelectedReservaId] = useState<number | null>(null);
     const [reservaDetail, setReservaDetail] = useState<any>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [loadingDetail, setLoadingDetail] = useState(false);
+    const [availableServices, setAvailableServices] = useState<Array<{ id: number; nombre: string; duracion_min: number }>>([]);
 
-    // Reajusta el tamaño del calendario cuando la sidebar cambia
+    // Cargar servicios disponibles al montar
+    useEffect(() => {
+        const fetchServices = async () => {
+            try {
+                const { data } = await http.get('/api/catalogo/servicios');
+                setAvailableServices(data.map((s: any) => ({
+                    id: s.id,
+                    nombre: s.nombre,
+                    duracion_min: s.duracion_min
+                })));
+            } catch (error) {
+                console.error('Error loading services:', error);
+            }
+        };
+        fetchServices();
+    }, []);
+
     useEffect(() => {
         const timer = setTimeout(() => {
             const calendarApi = mainCalendarRef.current?.getApi();
             if (calendarApi) {
                 calendarApi.updateSize();
             }
-        }, 310); // Un poco más del tiempo de la transición CSS
+        }, 310);
         return () => clearTimeout(timer);
     }, [isSidebarOpen]);
 
@@ -93,7 +102,14 @@ const AgendaPage = () => {
         setSelectedReservaId(null);
     };
 
-    // Navega el calendario principal cuando se selecciona una fecha en la sidebar
+    const handleRefreshCalendar = async () => {
+        try {
+            window.location.reload();
+        } catch (error) {
+            console.error('Error refrescando calendario:', error);
+        }
+    };
+
     const handleDateSelectSidebar = (date: Date) => {
         setCurrentDate(date);
         const calendarApi = mainCalendarRef.current?.getApi();
@@ -102,183 +118,208 @@ const AgendaPage = () => {
         }
     };
 
-    // Maneja la confirmación del modal para crear cita o bloqueo
-    const handleConfirmAppointment = async (data: AppointmentDataExtended) => { // Usa el tipo extendido
+    const handleConfirmAppointment = async (data: AdminBookingData) => {
         if (!selectionInfo || !selectionInfo.resource) {
             toast({ variant: "destructive", title: "Error", description: "No hay información de selección válida." });
             setIsModalOpen(false);
             return;
         }
 
-        // --- MANEJO DE BLOQUEOS (Aún no implementado vía API estándar) ---
-        if (data.type === 'blocked') {
-             toast({ title: "Info", description: "La creación de bloqueos desde aquí aún no está implementada vía API." });
-            console.warn("Creación de bloqueos no implementada vía API estándar de reserva.");
-             // Podrías añadir un evento visual localmente si quieres, pero no se guardará en backend
-             const newBlockedEvent = {
-                 id: `local_block_${Date.now()}`,
-                 title: data.title,
-                 start: selectionInfo.startStr,
-                 end: selectionInfo.endStr,
-                 resourceId: selectionInfo.resource?.id,
-                 display: 'background',
-                 backgroundColor: '#6b7280',
-                 extendedProps: { type: 'blocked' }
-             };
-             setEvents(prevEvents => [...prevEvents, newBlockedEvent]);
-            setIsModalOpen(false);
-            return;
-        }
-
-        // --- MANEJO DE CITAS (Reservas) ---
         setLocalLoading(true);
+
         try {
             const professionalId = parseInt(selectionInfo.resource.id, 10);
             if (isNaN(professionalId)) {
                 throw new Error("ID de profesional inválido.");
             }
 
-            const serviceId = data.selectedServiceId;
-            if (!serviceId) {
-                 throw new Error("Debes seleccionar un servicio para crear la cita.");
-            }
+            if (data.type === 'blocked') {
+                // CREAR BLOQUEO
+                // Construir fechas ISO completas desde fecha + hora
+                const inicioISO = `${data.fecha}T${data.hora_inicio}:00`;
+                const finISO = `${data.fecha}T${data.hora_fin}:00`;
 
-            // --- Placeholder para slot_id (¡REEMPLAZAR!) ---
-            const slotId = await findMatchingSlotId(professionalId, selectionInfo.start); // Necesitas implementar esta función
-            if (!slotId) {
-                throw new Error(`No se encontró un slot disponible para ${selectionInfo.resource.title} a las ${selectionInfo.start.toLocaleTimeString()}. Asegúrate de que los slots estén generados.`);
-            }
-            // --- Fin Placeholder ---
+                const blockResponse = await createBlock({
+                    profesional: professionalId,
+                    fecha: data.fecha,
+                    inicio: inicioISO,
+                    fin: finISO,
+                    razon: data.razonBloqueo
+                });
 
+                toast({ 
+                    title: "Horario Bloqueado", 
+                    description: `Bloqueo creado exitosamente.` 
+                });
 
-            const payload: ReservaPayload = {
-                profesional_id: professionalId,
-                // Puedes añadir campos para cliente si los recoges en el modal
-                cliente: { nombre: 'Agendado por Admin', email: `admin_${Date.now()}@temp.com` },
-                titular_nombre: data.title,
-                servicios: [{ servicio_id: serviceId, profesional_id: professionalId }],
-                slot_id: slotId, // Usa el slot_id encontrado
-                nota: 'Cita creada por administrador desde calendario',
-            };
+                // Agregar eventos visuales de bloqueo al calendario
+                const newBlockedEvent = {
+                    id: `block_${blockResponse.id}`,
+                    title: `🚫 ${data.razonBloqueo || 'Bloqueado'}`,
+                    start: inicioISO,
+                    end: finISO,
+                    resourceId: selectionInfo.resource.id,
+                    backgroundColor: '#ef4444',
+                    borderColor: '#dc2626',
+                    extendedProps: { 
+                        type: 'blocked',
+                        blockId: blockResponse.id,
+                        razon: data.razonBloqueo
+                    }
+                };
+                setEvents(prevEvents => [...prevEvents, newBlockedEvent]);
 
-            const nuevaReserva = await createReserva(payload);
-
-            // Actualiza FullCalendar con el nuevo evento
-            const newEvent = {
-                id: String(nuevaReserva.id),
-                title: data.title,
-                start: selectionInfo.startStr,
-                end: selectionInfo.endStr,
-                resourceId: selectionInfo.resource?.id,
-                backgroundColor: '#10b981', // O color del profesional
-                borderColor: '#059669',
-                extendedProps: {
-                    type: 'appointment',
-                    client: payload.cliente?.nombre || 'Cliente Admin',
-                    reservaId: nuevaReserva.id
+            } else {
+                // CREAR CITA (RESERVA)
+                if (!data.servicios || data.servicios.length === 0) {
+                    throw new Error("Debes seleccionar al menos un servicio.");
                 }
-            };
-            setEvents(prevEvents => [...prevEvents, newEvent]);
-            toast({ title: "Éxito", description: `Cita ${nuevaReserva.id} creada.` });
+
+                // Construir fechas ISO completas desde fecha + hora
+                const inicioISO = `${data.fecha}T${data.hora_inicio}:00`;
+                const finISO = `${data.fecha}T${data.hora_fin}:00`;
+                
+                // Buscar el slot que coincida con el horario seleccionado
+                const startTime = new Date(inicioISO);
+                const slotId = await findMatchingSlotId(professionalId, startTime);
+                
+                if (!slotId) {
+                    throw new Error(`No se encontró un slot disponible para ${selectionInfo.resource.title} en el horario seleccionado.`);
+                }
+
+                const payload: ReservaPayload = {
+                    profesional_id: professionalId,
+                    cliente: data.cliente!,
+                    vehiculo: data.vehiculo,
+                    direccion: data.direccion,
+                    servicios: data.servicios.map(sid => ({ 
+                        servicio_id: sid, 
+                        profesional_id: professionalId 
+                    })),
+                    slot_id: slotId,
+                    nota: data.nota || '',
+                };
+
+                const nuevaReserva = await createReserva(payload);
+
+                const newEvent = {
+                    id: String(nuevaReserva.id),
+                    title: `${data.cliente?.nombre} ${data.cliente?.apellido}`,
+                    start: inicioISO,
+                    end: finISO,
+                    resourceId: selectionInfo.resource.id,
+                    backgroundColor: '#10b981',
+                    borderColor: '#059669',
+                    extendedProps: {
+                        type: 'appointment',
+                        client: `${data.cliente?.nombre} ${data.cliente?.apellido}`,
+                        reservaId: nuevaReserva.id
+                    }
+                };
+                setEvents(prevEvents => [...prevEvents, newEvent]);
+                toast({ 
+                    title: "Cita Creada", 
+                    description: `Reserva #${nuevaReserva.id} creada exitosamente.` 
+                });
+            }
 
         } catch (error: any) {
-            console.error("Error creating appointment:", error);
+            console.error("Error en operación:", error);
             const errorMsg = error?.response?.data ? JSON.stringify(error.response.data) : error.message;
-            toast({ variant: "destructive", title: "Error al crear cita", description: errorMsg });
+            toast({ 
+                variant: "destructive", 
+                title: data.type === 'blocked' ? "Error al bloquear" : "Error al crear cita", 
+                description: errorMsg 
+            });
         } finally {
             setLocalLoading(false);
-            setIsModalOpen(false); // Cierra el modal
+            setIsModalOpen(false);
         }
     };
 
-    // --- Función Placeholder para encontrar Slot ID (¡Necesita implementación real!) ---
     async function findMatchingSlotId(profId: number, startTime: Date): Promise<number | null> {
-        console.warn("findMatchingSlotId no implementado - devolviendo null. La creación de reservas fallará.");
-        // Aquí deberías llamar a tu API (ej: listSlots) y encontrar el ID
-        // const fecha = startTime.toISOString().split('T')[0];
-        // const slots = await listSlots({ profesionalId: profId, fecha: fecha });
-        // const matchingSlot = slots.find(slot => new Date(slot.inicio).getTime() === startTime.getTime() && slot.estado === 'DISPONIBLE');
-        // return matchingSlot ? matchingSlot.id : null;
-        return null; // Devuelve null mientras no esté implementado
+        try {
+            const fecha = startTime.toISOString().split('T')[0];
+            const { data } = await http.get('/api/agenda/slots', { 
+                params: { profesional_id: profId, fecha } 
+            });
+            
+            const matchingSlot = data.find((slot: any) => {
+                const slotStart = new Date(slot.inicio);
+                return Math.abs(slotStart.getTime() - startTime.getTime()) < 60000 && slot.estado === 'DISPONIBLE';
+            });
+            
+            return matchingSlot ? matchingSlot.id : null;
+        } catch (error) {
+            console.error('Error finding slot:', error);
+            return null;
+        }
     }
-
 
     return (
         <div className="flex h-[calc(100vh-4rem)] admin-calendar">
-             {/* Sidebar */}
             <aside className={`transition-all duration-300 ease-in-out bg-card border-r border-border flex-shrink-0 overflow-hidden ${isSidebarOpen ? 'w-72' : 'w-0'}`}>
-                <div className="w-72 h-full"> {/* Contenido con ancho fijo */}
+                <div className="w-72 h-full">
                     <CalendarSidebar onDateSelect={handleDateSelectSidebar} resources={resources} />
                 </div>
             </aside>
 
-             {/* Contenido Principal */}
             <main className="flex-1 p-4 md:p-6 h-full overflow-y-auto relative bg-background">
-                 {/* Botón para mostrar/ocultar sidebar */}
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="absolute top-4 left-4 z-30 bg-card hover:bg-muted" // Estilo para visibilidad
+                    className="absolute top-4 left-4 z-30 bg-card hover:bg-muted"
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 >
                     {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                 </Button>
 
-                {/* Título (Opcional, podrías quitarlo si el header ya lo indica) */}
-                {/* <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-6 text-center pt-8 md:pt-0">Agenda</h1> */}
-
-                 {/* Contenedor del Calendario Principal */}
-                <div className="bg-card p-2 sm:p-4 rounded-lg shadow-sm h-full mt-10 md:mt-0"> {/* Ajuste de margen superior en móvil */}
+                <div className="bg-card p-2 sm:p-4 rounded-lg shadow-sm h-full mt-10 md:mt-0">
                     {initialLoading && <p className="text-center p-10">Cargando profesionales...</p>}
                     {!initialLoading && (
                         <FullCalendar
                             ref={mainCalendarRef}
                             plugins={[resourceTimeGridPlugin, dayGridPlugin, interactionPlugin]}
-                            schedulerLicenseKey="GPL-My-Project-Is-Open-Source" // Clave para vista de recursos
+                            schedulerLicenseKey="GPL-My-Project-Is-Open-Source"
                             headerToolbar={{
                                 left: 'prev,next today',
                                 center: 'title',
-                                right: 'resourceTimeGridDay,timeGridWeek,dayGridMonth' // Opciones de vista
+                                right: 'resourceTimeGridDay,timeGridWeek,dayGridMonth'
                             }}
-                            initialView="resourceTimeGridDay" // Vista inicial por día con recursos
+                            initialView="resourceTimeGridDay"
                             initialDate={currentDate}
                             locale={esLocale}
-                            firstDay={1} // Lunes como primer día
+                            firstDay={1}
                             slotMinTime="08:00:00"
                             slotMaxTime="19:00:00"
-                            allDaySlot={false} // Oculta la fila "todo el día"
-                            resources={resources} // Usa los profesionales cargados
-                            events={events} // Usa los eventos del estado
-                            selectable={true} // Permite seleccionar rangos de tiempo
-                            editable={true} // Permite mover/redimensionar eventos (configurado abajo para limitar)
-                            eventStartEditable={false} // No permite arrastrar para cambiar inicio
-                            eventDurationEditable={false} // No permite redimensionar
-                            selectOverlap={(event: EventApi) => event.extendedProps.type !== 'blocked'} // No permite seleccionar sobre bloqueos
-                            eventClick={(info) => {
-                                // Aquí puedes abrir un modal para VER/EDITAR la cita existente
-                                console.log('Event clicked:', info.event);
-                                alert(`Cita: ${info.event.title}\nCliente: ${info.event.extendedProps.client || 'N/A'}`);
-                            }}
+                            allDaySlot={false}
+                            resources={resources}
+                            events={events}
+                            selectable={true}
+                            editable={true}
+                            eventStartEditable={false}
+                            eventDurationEditable={false}
+                            selectOverlap={(event: EventApi) => event.extendedProps.type !== 'blocked'}
+                            eventClick={handleEventClick}
                             select={(info) => {
-                                // Abre el modal para CREAR una nueva cita/bloqueo
                                 setSelectionInfo(info);
                                 setIsModalOpen(true);
-                                info.view.calendar.unselect(); // Deselecciona visualmente el rango
+                                info.view.calendar.unselect();
                             }}
-                            height="100%" // Ocupa toda la altura del contenedor
-                            stickyHeaderDates={true} // Encabezados fijos al hacer scroll vertical
-                            nowIndicator={true} // Muestra línea de hora actual
+                            height="100%"
+                            stickyHeaderDates={true}
+                            nowIndicator={true}
                         />
                     )}
                 </div>
             </main>
 
-            {/* Modal para crear cita/bloqueo */}
-            <AppointmentModal
+            <AdminBookingModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                onConfirm={handleConfirmAppointment} // Llama a la función actualizada
+                onConfirm={handleConfirmAppointment}
                 selectionInfo={selectionInfo}
+                availableServices={availableServices}
             />
 
             {isDetailModalOpen && (
@@ -293,10 +334,10 @@ const AgendaPage = () => {
                         isOpen={isDetailModalOpen}
                         onClose={handleCloseDetailModal}
                         reserva={reservaDetail}
+                        onRefreshCalendar={handleRefreshCalendar}
                     />
                 )
             )}
-
         </div>
     );
 };

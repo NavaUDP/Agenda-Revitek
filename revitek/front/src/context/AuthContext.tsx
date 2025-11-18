@@ -21,12 +21,13 @@ type User = {
     id: number;
     nombre: string;
     email: string;
-    role: 'admin' | 'client';
+    is_staff: boolean;
 }
 
 // Actualizamos el tipo del Contexto
 interface AuthContextType {
   isAuthenticated: boolean;
+  user: User | null;
   accessToken: string | null;
   refreshToken: string | null;
   login: (email: string, password: string) => Promise<void>;
@@ -40,6 +41,7 @@ export const AuthContext = createContext<AuthContextType | null>(null);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   
   // --- 2. Cambiar isLoading a 'true' por defecto ---
   const [isLoading, setIsLoading] = useState<boolean>(true); 
@@ -50,12 +52,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const storedAccess = localStorage.getItem('access_token');
       const storedRefresh = localStorage.getItem('refresh_token');
+      const storedUser = localStorage.getItem('user');
 
       if (storedAccess) {
         setAccessToken(storedAccess);
       }
       if (storedRefresh) {
         setRefreshToken(storedRefresh);
+      }
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
       }
     } catch (error) {
       console.error("Error al leer localStorage", error);
@@ -77,9 +83,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setRefreshToken(data.refresh);
       localStorage.setItem('access_token', data.access);
       localStorage.setItem('refresh_token', data.refresh);
+      
+      // Decodificar el JWT para obtener la información del usuario
+      const decoded: any = jwtDecode(data.access);
+      const userData: User = {
+        id: decoded.user_id,
+        nombre: decoded.nombre,
+        email: decoded.email,
+        is_staff: decoded.is_staff,
+      };
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
       // ... (toast) ...
     } catch (error: any) {
       // ... (manejo de error) ...
+      throw error;
     } finally {
       // --- 6. Quitar setIsLoading(false) de aquí ---
       // setIsLoading(false);
@@ -89,12 +107,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = () => {
     setAccessToken(null);
     setRefreshToken(null);
+    setUser(null);
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, accessToken, refreshToken, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, accessToken, refreshToken, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
