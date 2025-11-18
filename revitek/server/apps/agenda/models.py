@@ -23,6 +23,29 @@ class Slot(models.Model):
         return f"{self.profesional} {self.inicio:%Y-%m-%d %H:%M}"
 
 
+class SlotBlock(models.Model):
+    """Modelo para bloqueos de horario editables"""
+    profesional = models.ForeignKey(Profesional, on_delete=models.CASCADE, related_name="bloqueos")
+    fecha = models.DateField(db_index=True)
+    inicio = models.DateTimeField(db_index=True)
+    fin = models.DateTimeField()
+    razon = models.TextField(default="", blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bloqueos_creados"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["inicio"]
+
+    def __str__(self):
+        return f"Bloqueo {self.profesional} {self.inicio:%Y-%m-%d %H:%M}"
+
+
 class Reserva(models.Model):
     ESTADOS = [
         ("RESERVADO", "Reservado"), ("CONFIRMADO", "Confirmado"), ("ASISTE", "Asiste"),

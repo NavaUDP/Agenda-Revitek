@@ -49,9 +49,9 @@ def aggregated_availability(request):
         except Exception:
             pass # ignorar errores de generación por ahora
 
-    # Recolecta los slots (SIN filtro de duración)
+    # Recolecta los slots disponibles (excluye BLOQUEADO y RESERVADO)
     qs = Slot.objects.filter(
-        estado='DISPONIBLE', 
+        estado='DISPONIBLE',  # Solo disponibles (excluye BLOQUEADO)
         fecha=fecha_parsed, 
         profesional_id__in=list(common)
     ).order_by('inicio')
