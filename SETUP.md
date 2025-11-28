@@ -52,7 +52,7 @@ cd revitek
 python3 -m venv serverenv
 source serverenv/bin/activate
 cd backend
-pip install django djangorestframework djangorestframework-simplejwt django-cors-headers psycopg2-binary python-dotenv
+pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver
 ```

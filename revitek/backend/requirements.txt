@@ -1,0 +1,29 @@
+# Core Django Framework
+Django==5.2.7
+asgiref==3.9.2
+sqlparse==0.5.3
+
+# Django REST Framework
+djangorestframework==3.16.1
+djangorestframework-simplejwt==5.5.1
+PyJWT==2.10.1
+
+# Django Extensions
+django-cors-headers==4.9.0
+django-filter==25.1
+
+# Database
+psycopg2-binary==2.9.10
+
+# Environment Variables
+python-dotenv==1.1.1
+
+# HTTP Requests (for WhatsApp API)
+requests==2.32.5
+certifi==2025.11.12
+urllib3==2.5.0
+charset-normalizer==3.4.4
+idna==3.11
+
+# Image Processing
+Pillow==11.3.0
