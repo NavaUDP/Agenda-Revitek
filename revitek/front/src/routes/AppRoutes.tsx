@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Importación de Layouts y Páginas
-import PublicLayout from '../layouts/PublicLayout'; 
+import PublicLayout from '../layouts/PublicLayout';
 import LandingPage from '../pages/LandingPage';
 import ServiciosPage from '../pages/ServiciosPage';
 import { LoginPage } from '../pages/LoginPage';
@@ -13,6 +13,8 @@ import ProfessionalsPage from '../pages/ProfessionalsPage';
 import AgendaPage from '../pages/AgendaPage';
 import AdminServicesPage from '../pages/AdminServicesPage'
 import AdminAssignmentsPage from '../pages/AdminAssignmentsPage';
+import ProfessionalEditPage from '../pages/ProfessionalEditPage';
+import ConfirmReservationPage from '../pages/ConfirmReservationPage';
 import NotFound from '../pages/NotFound';
 
 export function AppRoutes() {
@@ -30,13 +32,16 @@ export function AppRoutes() {
       {/* --- NUEVA RUTA DE AGENDAMIENTO PARA CLIENTES --- */}
       <Route path="/agendar" element={<ClientBookingPage />} />
 
+      {/* --- RUTA PÚBLICA DE CONFIRMACIÓN VÍA WHATSAPP --- */}
+      <Route path="/confirmar/:token" element={<ConfirmReservationPage />} />
+
       {/* --- RUTAS INDEPENDIENTES --- */}
       {/* Estas rutas no usan el PublicLayout (no tienen Header ni Footer) */}
       <Route path="/login" element={<LoginPage />} />
 
       {/* ---  NUEVO: GRUPO DE RUTAS DE ADMINISTRADOR --- */}
-      <Route 
-        path="/admin" 
+      <Route
+        path="/admin"
         element={
           <ProtectedRoute>
             <AdminLayout />
@@ -44,9 +49,10 @@ export function AppRoutes() {
         }
       >
         {/* Ruta por defecto para /admin -> redirige a la agenda */}
-        <Route index element={<Navigate to="agenda" replace />} /> 
+        <Route index element={<Navigate to="agenda" replace />} />
         <Route path="agenda" element={<AgendaPage />} />
         <Route path="profesionales" element={<ProfessionalsPage />} />
+        <Route path="profesionales/:id" element={<ProfessionalEditPage />} />
         <Route path="servicios" element={<AdminServicesPage />} />
         <Route path="asignaciones" element={<AdminAssignmentsPage />} />
       </Route>

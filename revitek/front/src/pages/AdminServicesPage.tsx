@@ -1,41 +1,70 @@
 import { useState, useEffect } from 'react';
-import { listAllServicios, createServicio, updateServicio, deleteServicio, type ServicioPayload } from '@/api/servicios';
+import {
+    listAllServicios,
+    createServicio,
+    updateServicio,
+    deleteServicio,
+    type ServicioPayload,
+    listCategories,
+    Category
+} from '@/api/servicios';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { Trash2, Edit, PlusCircle } from 'lucide-react';
-import { useToast } from "@/components/ui/use-toast"; 
-
+import { useToast } from "@/components/ui/use-toast";
 
 interface Servicio {
     id: number;
-    nombre: string;
-    categoria?: string;
-    duracion_min: number;
-    activo: boolean;
-    precio: number; // <-- Añadido
+    name: string;
+    category?: string;
+    duration_min: number;
+    active: boolean;
+    price: number;
 }
 
 const AdminServicesPage = () => {
     const [servicios, setServicios] = useState<Servicio[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [newServiceName, setNewServiceName] = useState('');
-    const [newServiceDuration, setNewServiceDuration] = useState('');
-    const [newServicePrice, setNewServicePrice] = useState(''); // <-- Nuevo estado para precio
-    const { toast } = useToast();
+
+    const [newName, setNewName] = useState('');
+    const [newDuration, setNewDuration] = useState('');
+    const [newPrice, setNewPrice] = useState('');
+    const [newCategory, setNewCategory] = useState('');
 
     const [editingId, setEditingId] = useState<number | null>(null);
 
+    const [newActive, setNewActive] = useState(true);
+
+    const { toast } = useToast();
+
+    // -------------------------
+    // Cargar servicios del backend
+    // -------------------------
     const fetchServicios = async () => {
-        setLoading(true);
-        setError(null);
         try {
-            const data = await listAllServicios();
-            setServicios(data);
+            setLoading(true);
+            const [serviciosData, categoriesData] = await Promise.all([
+                listAllServicios({ include_inactive: true }),
+                listCategories()
+            ]);
+            setServicios(serviciosData);
+            setCategories(categoriesData);
         } catch (err) {
-            setError('Error al cargar los servicios.');
             console.error(err);
+            setError("Error al cargar los servicios.");
         } finally {
             setLoading(false);
         }
@@ -46,46 +75,61 @@ const AdminServicesPage = () => {
     }, []);
 
     const resetForm = () => {
-        setNewServiceName('');
-        setNewServiceDuration('');
-        setNewServicePrice('');
+        setNewName('');
+        setNewDuration('');
+        setNewPrice('');
+        setNewCategory('');
+        setNewActive(true);
         setEditingId(null);
     };
 
-    const handleSubmitService = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        const nombre = newServiceName.trim();
-        const duracion_min = parseInt(newServiceDuration, 10);
-        const precio = parseInt(newServicePrice, 10);
+    // -------------------------
+    // Crear o actualizar servicio
+    // -------------------------
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
 
-        if (!nombre || isNaN(duracion_min) || duracion_min <= 0 || isNaN(precio) || precio < 0) {
-            toast({ title: "Error", description: "Nombre, duración positiva y precio (>=0) son requeridos.", variant: "destructive" });
+        const name = newName.trim();
+        const duration_min = Number(newDuration);
+        const price = Number(newPrice);
+
+        if (!name || duration_min <= 0 || price < 0) {
+            toast({
+                title: "Error",
+                description: "Nombre, duración (>0) y precio (>=0) son obligatorios.",
+                variant: "destructive"
+            });
             return;
         }
 
-        // Usamos nuestro tipo de payload
-        const payload: ServicioPayload = { nombre, duracion_min, precio };
+        const payload: ServicioPayload = {
+            name,
+            duration_min,
+            price,
+            category: newCategory,
+            active: newActive
+        };
+
         setLoading(true);
 
         try {
             if (editingId) {
-                // --- LÓGICA DE ACTUALIZAR ---
-                await updateServicio(editingId, payload);
-                toast({ title: "Éxito", description: `Servicio "${nombre}" actualizado.` });
+                await updateServicio(editingId, payload, { include_inactive: true });
+                toast({ title: "Servicio actualizado", description: `Se actualizó "${name}".` });
             } else {
-                // --- LÓGICA DE CREAR ---
                 await createServicio(payload);
-                toast({ title: "Éxito", description: `Servicio "${nombre}" añadido.` });
+                toast({ title: "Servicio creado", description: `Se agregó "${name}".` });
             }
-            resetForm(); // Limpiamos el formulario
-            fetchServicios(); // Recargamos la lista
+
+            resetForm();
+            fetchServicios();
 
         } catch (err: any) {
-            const errorMsg = err?.response?.data?.nombre?.[0] || (editingId ? 'actualizar' : 'añadir');
-            toast({ 
-                title: "Error", 
-                description: `No se pudo ${editingId ? 'actualizar' : 'añadir'} el servicio. ${errorMsg}`, 
-                variant: "destructive" 
+            const msg = err?.response?.data || "Error inesperado";
+            toast({
+                title: "Error al guardar",
+                description: JSON.stringify(msg),
+                variant: "destructive"
             });
             console.error(err);
         } finally {
@@ -93,95 +137,132 @@ const AdminServicesPage = () => {
         }
     };
 
-    // 5. ACTUALIZAMOS EL HANDLER DE ELIMINAR (para que use la API real)
-    const handleDeleteService = async (id: number, name: string) => {
-        if (!confirm(`¿Estás seguro de eliminar el servicio "${name}"? Esta acción no se puede deshacer.`)) {
-            return;
-        }
+    // -------------------------
+    // Eliminar servicio
+    // -------------------------
+    const handleDelete = async (id: number, name: string) => {
+        if (!confirm(`¿Eliminar el servicio "${name}"?`)) return;
+
         setLoading(true);
+
         try {
-            await deleteServicio(id); // <-- USANDO API REAL
-            toast({ title: "Éxito", description: `Servicio "${name}" eliminado.` });
-            fetchServicios(); // Vuelve a cargar la lista
-            
-            // Si estábamos editando el servicio que se borró, limpiamos el form
-            if (editingId === id) {
-                resetForm();
-            }
+            await deleteServicio(id, { include_inactive: true });
+            toast({ title: "Eliminado", description: `El servicio "${name}" se eliminó.` });
+            fetchServicios();
+
+            if (editingId === id) resetForm();
+
         } catch (err) {
-            toast({ title: "Error", description: "No se pudo eliminar el servicio. Es posible que esté asignado a un profesional.", variant: "destructive" });
+            toast({
+                title: "Error eliminando",
+                description: "Puede estar asignado a un profesional.",
+                variant: "destructive"
+            });
             console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
-    // 6. ACTUALIZAMOS EL HANDLER DE EDITAR (para poblar el formulario)
-    const handleEditService = (servicio: Servicio) => {
-         setEditingId(servicio.id);
-         setNewServiceName(servicio.nombre);
-         setNewServiceDuration(String(servicio.duracion_min));
-         setNewServicePrice(String(servicio.precio));
-         
-         // Opcional: hacer scroll hacia el formulario
-         window.scrollTo({ top: 0, behavior: 'smooth' });
+    // -------------------------
+    // Editar servicio (cargar datos al form)
+    // -------------------------
+    const handleEdit = (s: Servicio) => {
+        setEditingId(s.id);
+        setNewName(s.name);
+        setNewDuration(String(s.duration_min));
+        setNewPrice(String(s.price));
+        setNewCategory(s.category || '');
+        setNewActive(s.active);
+        window.scrollTo({ top: 0, behavior: "smooth" });
     };
-
 
     return (
         <div className="p-6">
-            <h1 className="text-3xl font-bold text-foreground mb-8">Gestionar Servicios</h1>
+            <h1 className="text-3xl font-bold mb-8">Gestionar Servicios</h1>
 
-            <div className={`grid grid-cols-1 md:grid-cols-2 gap-8 ${loading && !editingId ? 'opacity-50' : ''}`}>
-                {/* Columna para añadir/editar */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                {/* FORMULARIO */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center">
                             <PlusCircle className="h-5 w-5 mr-2" />
-                            {/* 7. TÍTULO DINÁMICO */}
-                            {editingId ? 'Editar Servicio' : 'Añadir Nuevo Servicio'}
+                            {editingId ? "Editar Servicio" : "Añadir Servicio"}
                         </CardTitle>
                     </CardHeader>
+
                     <CardContent>
-                        {/* 8. APUNTAMOS AL NUEVO HANDLER */}
-                        <form onSubmit={handleSubmitService} className="space-y-4">
-                            <Input
-                                name="serviceName"
-                                placeholder="Nombre del servicio"
-                                value={newServiceName}
-                                onChange={(e) => setNewServiceName(e.target.value)}
-                                required
-                                disabled={loading}
-                            />
-                            <Input
-                                name="serviceDuration"
-                                type="number"
-                                placeholder="Duración (minutos)"
-                                value={newServiceDuration}
-                                onChange={(e) => setNewServiceDuration(e.target.value)}
-                                required
-                                min="1"
-                                disabled={loading}
-                            />
-                            <Input
-                                name="servicePrice"
-                                type="number"
-                                placeholder="Precio (ej: 25000)"
-                                value={newServicePrice}
-                                onChange={(e) => setNewServicePrice(e.target.value)}
-                                required
-                                min="0" 
-                                disabled={loading}
-                            />
-                            
-                            {/* 9. BOTONES DINÁMICOS */}
-                            <div className="flex space-x-2">
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Nombre</label>
+                                <Input
+                                    placeholder="Nombre del servicio"
+                                    value={newName}
+                                    onChange={(e) => setNewName(e.target.value)}
+                                    disabled={loading}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Duración (min)</label>
+                                    <Input
+                                        placeholder="60"
+                                        type="number"
+                                        value={newDuration}
+                                        min={1}
+                                        onChange={(e) => setNewDuration(e.target.value)}
+                                        disabled={loading}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Precio</label>
+                                    <Input
+                                        placeholder="25000"
+                                        type="number"
+                                        value={newPrice}
+                                        min={0}
+                                        onChange={(e) => setNewPrice(e.target.value)}
+                                        disabled={loading}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Categoría</label>
+                                <Select value={newCategory} onValueChange={setNewCategory} disabled={loading}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecciona una categoría" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {categories.map((cat) => (
+                                            <SelectItem key={cat.id} value={cat.name}>
+                                                {cat.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                                <Switch
+                                    checked={newActive}
+                                    onCheckedChange={setNewActive}
+                                    disabled={loading}
+                                />
+                                <span className="text-sm font-medium">
+                                    {newActive ? "Activo (Visible)" : "Inactivo (Oculto)"}
+                                </span>
+                            </div>
+
+                            <div className="flex gap-2 pt-2">
                                 <Button type="submit" disabled={loading} className="flex-1">
-                                    {loading ? 'Guardando...' : (editingId ? 'Actualizar Servicio' : 'Añadir Servicio')}
+                                    {editingId ? "Actualizar" : "Crear Servicio"}
                                 </Button>
                                 {editingId && (
-                                    <Button variant="outline" type="button" onClick={resetForm} disabled={loading}>
-                                        Cancelar Edición
+                                    <Button type="button" variant="outline" disabled={loading} onClick={resetForm}>
+                                        Cancelar
                                     </Button>
                                 )}
                             </div>
@@ -189,32 +270,44 @@ const AdminServicesPage = () => {
                     </CardContent>
                 </Card>
 
-                {/* Columna para listar */}
+                {/* LISTA */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Lista de Servicios</CardTitle>
+                        <CardTitle>Servicios Registrados</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {loading && !servicios.length && <p>Cargando servicios...</p>}
                         {error && <p className="text-destructive">{error}</p>}
-                        {!loading && !error && servicios.length === 0 && (
-                            <p className="text-muted-foreground">No hay servicios registrados.</p>
-                        )}
+
                         <ul className="space-y-3 max-h-96 overflow-y-auto">
                             {servicios.map(s => (
-                                <li key={s.id} className="flex justify-between items-center p-3 bg-muted rounded-md">
-                                    <div>
-                                        <span className="font-medium">{s.nombre}</span>
-                                        <span className="text-sm text-muted-foreground ml-2">
-                                            ({s.duracion_min} min / ${s.precio?.toLocaleString('es-CL') ?? 'N/A'})
+                                <li key={s.id} className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border rounded-md gap-3 ${s.active ? 'bg-card' : 'bg-muted/50 opacity-70'}`}>
+                                    <div className="w-full sm:w-auto">
+                                        <div className="flex items-center justify-between sm:justify-start gap-2">
+                                            <span className="font-semibold">{s.name}</span>
+                                            {!s.active && <Badge variant="secondary" className="text-xs">Inactivo</Badge>}
+                                        </div>
+                                        <span className="text-sm text-muted-foreground block mt-1 sm:mt-0">
+                                            {s.duration_min} min / ${s.price.toLocaleString('es-CL')}
                                         </span>
                                     </div>
-                                    <div className="flex space-x-1">
-                                         {/* 10. CONECTAMOS LOS BOTONES DE LA LISTA */}
-                                         <Button variant="ghost" size="icon" onClick={() => handleEditService(s)} disabled={loading} title="Editar">
+
+                                    <div className="flex gap-1 self-end sm:self-auto">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleEdit(s)}
+                                            disabled={loading}
+                                        >
                                             <Edit className="h-4 w-4 text-blue-500" />
                                         </Button>
-                                        <Button variant="ghost" size="icon" onClick={() => handleDeleteService(s.id, s.nombre)} disabled={loading} title="Eliminar">
+
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleDelete(s.id, s.name)}
+                                            disabled={loading}
+                                        >
                                             <Trash2 className="h-4 w-4 text-destructive" />
                                         </Button>
                                     </div>

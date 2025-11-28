@@ -25,6 +25,7 @@ export interface AdminBookingData {
     patente: string;
     marca: string;
     modelo?: string;
+    year?: number;
   };
   direccion?: {
     calle: string;
@@ -65,24 +66,24 @@ const generateHourOptions = () => {
   return hours;
 };
 
-export const AdminBookingModal = ({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
+export const AdminBookingModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
   selectionInfo,
   availableServices,
   initialData = null,
   isEditing = false
 }: AdminBookingModalProps) => {
   const [bookingType, setBookingType] = useState<AdminBookingType>('appointment');
-  
+
   // Fecha y horas con selectores
   const [fecha, setFecha] = useState('');
   const [fechaFin, setFechaFin] = useState('');
   const [aplicarRango, setAplicarRango] = useState(false);
   const [horaInicio, setHoraInicio] = useState('09:00');
   const [horaFin, setHoraFin] = useState('10:00');
-  
+
   // Datos de cita (Formato ReservaDetailModal)
   const [cliente, setCliente] = useState({
     nombre: '',
@@ -90,16 +91,17 @@ export const AdminBookingModal = ({
     email: '',
     telefono: ''
   });
-  
+
   const [vehiculo, setVehiculo] = useState<{
     patente: string;
     marca: string;
     modelo?: string;
+    year?: number;
   }>({
     patente: '',
     marca: ''
   });
-  
+
   const [direccion, setDireccion] = useState<{
     calle: string;
     numero: string;
@@ -110,13 +112,13 @@ export const AdminBookingModal = ({
     calle: '',
     numero: ''
   });
-  
+
   const [selectedServices, setSelectedServices] = useState<number[]>([]);
   const [nota, setNota] = useState('');
-  
+
   // Datos de bloqueo
   const [razonBloqueo, setRazonBloqueo] = useState('');
-  
+
   // Errores
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -132,7 +134,7 @@ export const AdminBookingModal = ({
         setAplicarRango(initialData.aplicar_a_rango || false);
         setHoraInicio(initialData.hora_inicio);
         setHoraFin(initialData.hora_fin);
-        
+
         if (initialData.type === 'appointment') {
           setCliente(initialData.cliente || { nombre: '', apellido: '', email: '', telefono: '' });
           setVehiculo(initialData.vehiculo || { patente: '', marca: '' });
@@ -150,10 +152,10 @@ export const AdminBookingModal = ({
         setFechaFin(fechaStr);
         setAplicarRango(false);
         setHoraInicio(startDate.getHours().toString().padStart(2, '0') + ':00');
-        
+
         const endDate = new Date(selectionInfo.end);
         setHoraFin(endDate.getHours().toString().padStart(2, '0') + ':00');
-        
+
         // Reset form
         setBookingType('appointment');
         setCliente({ nombre: '', apellido: '', email: '', telefono: '' });
@@ -169,7 +171,7 @@ export const AdminBookingModal = ({
 
   const validateAppointment = (): boolean => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!cliente.nombre.trim()) newErrors.nombre = 'Nombre requerido';
     if (!cliente.apellido.trim()) newErrors.apellido = 'Apellido requerido';
     if (!cliente.email.trim()) {
@@ -183,7 +185,7 @@ export const AdminBookingModal = ({
     if (!direccion.calle.trim()) newErrors.calle = 'Calle requerida';
     if (!direccion.numero.trim()) newErrors.numero = 'Número requerido';
     if (selectedServices.length === 0) newErrors.servicios = 'Selecciona al menos un servicio';
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -198,7 +200,7 @@ export const AdminBookingModal = ({
   const handleSubmit = () => {
     if (bookingType === 'appointment') {
       if (!validateAppointment()) return;
-      
+
       const data: AdminBookingData = {
         type: 'appointment',
         cliente: {
@@ -210,7 +212,8 @@ export const AdminBookingModal = ({
         vehiculo: {
           patente: vehiculo.patente.trim().toUpperCase(),
           marca: vehiculo.marca.trim(),
-          modelo: vehiculo.modelo?.trim()
+          modelo: vehiculo.modelo?.trim(),
+          year: vehiculo.year
         },
         direccion: {
           calle: direccion.calle.trim(),
@@ -225,11 +228,11 @@ export const AdminBookingModal = ({
         hora_inicio: horaInicio,
         hora_fin: horaFin
       };
-      
+
       onConfirm(data);
     } else {
       if (!validateBlocked()) return;
-      
+
       const data: AdminBookingData = {
         type: 'blocked',
         razonBloqueo: razonBloqueo.trim(),
@@ -239,16 +242,16 @@ export const AdminBookingModal = ({
         hora_inicio: horaInicio,
         hora_fin: horaFin
       };
-      
+
       onConfirm(data);
     }
-    
+
     onClose();
   };
 
   const toggleService = (serviceId: number) => {
-    setSelectedServices(prev => 
-      prev.includes(serviceId) 
+    setSelectedServices(prev =>
+      prev.includes(serviceId)
         ? prev.filter(id => id !== serviceId)
         : [...prev, serviceId]
     );
@@ -264,7 +267,7 @@ export const AdminBookingModal = ({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl">
-            {isEditing 
+            {isEditing
               ? (bookingType === 'appointment' ? '✏️ Editar Cita' : '✏️ Editar Bloqueo')
               : (bookingType === 'appointment' ? '📅 Crear Nueva Cita' : '🚫 Bloquear Horario')
             }
@@ -298,7 +301,7 @@ export const AdminBookingModal = ({
           {/* Selección de Horario con Selectores */}
           <div className="bg-muted/30 p-4 rounded-lg space-y-3">
             <div className="text-sm font-semibold">📅 Horario</div>
-            
+
             {/* Opción de rango solo para bloqueos */}
             {bookingType === 'blocked' && (
               <div className="flex items-center space-x-2 p-3 border rounded-lg bg-background">
@@ -314,7 +317,7 @@ export const AdminBookingModal = ({
                 </Label>
               </div>
             )}
-            
+
             <div className={`grid gap-4 ${aplicarRango && bookingType === 'blocked' ? 'grid-cols-4' : 'grid-cols-3'}`}>
               <div>
                 <Label htmlFor="fecha">{aplicarRango && bookingType === 'blocked' ? 'Fecha Inicio' : 'Fecha'}</Label>
@@ -326,7 +329,7 @@ export const AdminBookingModal = ({
                   className="mt-1"
                 />
               </div>
-              
+
               {aplicarRango && bookingType === 'blocked' && (
                 <div>
                   <Label htmlFor="fecha-fin">Fecha Fin</Label>
@@ -340,7 +343,7 @@ export const AdminBookingModal = ({
                   />
                 </div>
               )}
-              
+
               <div>
                 <Label htmlFor="hora-inicio">Hora Inicio</Label>
                 <Select value={horaInicio} onValueChange={setHoraInicio}>
@@ -368,13 +371,13 @@ export const AdminBookingModal = ({
                 </Select>
               </div>
             </div>
-            
+
             {aplicarRango && bookingType === 'blocked' && fechaFin && fecha && (
               <div className="text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 p-2 rounded">
                 ℹ️ Se bloquearán {Math.ceil((new Date(fechaFin).getTime() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24)) + 1} días desde {new Date(fecha).toLocaleDateString('es-CL')} hasta {new Date(fechaFin).toLocaleDateString('es-CL')}
               </div>
             )}
-            
+
             {selectionInfo && (
               <div className="text-sm text-muted-foreground">
                 <strong>Profesional:</strong> {selectionInfo.resource?.title}
@@ -608,7 +611,7 @@ export const AdminBookingModal = ({
             Cancelar
           </Button>
           <Button onClick={handleSubmit}>
-            {isEditing 
+            {isEditing
               ? (bookingType === 'appointment' ? 'Actualizar Cita' : 'Actualizar Bloqueo')
               : (bookingType === 'appointment' ? 'Crear Cita' : 'Bloquear Horario')
             }

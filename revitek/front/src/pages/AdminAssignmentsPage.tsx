@@ -1,201 +1,223 @@
 // src/pages/AdminAssignmentsPage.tsx
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from "@/components/ui/checkbox" // Para seleccionar servicios
-import { Label } from "@/components/ui/label"
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { listProfesionales, type Professional } from "@/api/profesionales";
+import {
+  listAllServicios,
+  listAsignaciones,
+  asignarServicio,
+  quitarServicio,
+} from "@/api/servicios";
 import { useToast } from "@/components/ui/use-toast";
-import { listProfesionales, Profesional } from '@/api/profesionales'; // Para obtener profesionales
-import { listAllServicios, listAsignaciones, asignarServicio, quitarServicio } from '@/api/servicios'; // Para obtener servicios y asignaciones
 
-// Tipos para los datos que manejaremos
 interface Servicio {
   id: number;
-  nombre: string;
-  duracion_min: number;
-  // Añade otros campos si los necesitas mostrar
+  name: string;
+  duration_min: number;
 }
 
 interface Asignacion {
-  id: number; // ID de la asignación (ProfesionalServicio)
-  profesional: number;
-  servicio: Servicio;
-  duracion_override_min?: number | null;
-  activo: boolean;
+  id: number;
+  professional: number;
+  service: number;
+  active: boolean;
 }
 
-const AdminAssignmentsPage = () => {
-  const [profesionales, setProfesionales] = useState<Profesional[]>([]);
-  const [servicios, setServicios] = useState<Servicio[]>([]);
-  const [selectedProfesionalId, setSelectedProfesionalId] = useState<string | undefined>();
-  const [asignacionesProfesional, setAsignacionesProfesional] = useState<Asignacion[]>([]);
-  const [loadingProfesionales, setLoadingProfesionales] = useState(true);
-  const [loadingServicios, setLoadingServicios] = useState(true);
-  const [loadingAsignaciones, setLoadingAsignaciones] = useState(false);
-  const [saving, setSaving] = useState(false); // Para indicar que se está guardando
+export default function AdminAssignmentsPage() {
   const { toast } = useToast();
 
-  // Cargar profesionales y servicios al montar
+  const [profesionales, setProfesionales] = useState<Professional[]>([]);
+  const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
+
+  const [selectedProfesionalId, setSelectedProfesionalId] = useState<number>();
+
+  const [loadingProf, setLoadingProf] = useState(true);
+  const [loadingServ, setLoadingServ] = useState(true);
+  const [loadingAsign, setLoadingAsign] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const [isSwitching, setIsSwitching] = useState(false);
+
+  // Load professionals + services
   useEffect(() => {
-    const fetchData = async () => {
+    const load = async () => {
       try {
-        setLoadingProfesionales(true);
-        const profData = await listProfesionales();
-        setProfesionales(profData);
-      } catch (err) {
-        toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los profesionales." });
+        const profs = await listProfesionales();
+        setProfesionales(profs);
       } finally {
-        setLoadingProfesionales(false);
+        setLoadingProf(false);
       }
 
       try {
-        setLoadingServicios(true);
-        const servData = await listAllServicios();
-        setServicios(servData);
-      } catch (err) {
-        toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los servicios." });
+        const servs = await listAllServicios();
+        setServicios(servs);
       } finally {
-        setLoadingServicios(false);
+        setLoadingServ(false);
       }
     };
-    fetchData();
-  }, [toast]);
+    load();
+  }, []);
 
-  // Cargar asignaciones cuando se selecciona un profesional
+  // Load assignments when switching professional
   useEffect(() => {
-    if (selectedProfesionalId) {
-      const fetchAsignaciones = async () => {
-        setLoadingAsignaciones(true);
-        try {
-          const asignData = await listAsignaciones({ profesional_id: parseInt(selectedProfesionalId, 10) });
-          setAsignacionesProfesional(asignData);
-        } catch (err) {
-          toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar las asignaciones del profesional." });
-          setAsignacionesProfesional([]);
-        } finally {
-          setLoadingAsignaciones(false);
-        }
-      };
-      fetchAsignaciones();
-    } else {
-      setAsignacionesProfesional([]); // Limpiar si no hay profesional seleccionado
+    if (!selectedProfesionalId) {
+      setAsignaciones([]);
+      return;
     }
-  }, [selectedProfesionalId, toast]);
 
-  // Manejar cambio en checkbox de servicio
-  const handleServiceAssignmentChange = async (serviceId: number, isChecked: boolean) => {
-    if (!selectedProfesionalId) return;
-    const profesionalId = parseInt(selectedProfesionalId, 10);
+    let isCancelled = false;
 
-    setSaving(true);
-    try {
-      if (isChecked) {
-        // Asignar servicio
-        await asignarServicio({
-          profesional: profesionalId,
-          servicio: serviceId,
-          activo: true // Por defecto lo asignamos como activo
-          // Podrías añadir un input para duracion_override_min si quieres
+    const loadAsign = async () => {
+      setIsSwitching(true);
+      setLoadingAsign(true);
+      setAsignaciones([]);
+
+      try {
+        const data = await listAsignaciones({
+          professional_id: selectedProfesionalId,
         });
-        toast({ title: "Éxito", description: "Servicio asignado." });
-      } else {
-        // Quitar asignación (Desasignar)
-        // Necesitamos encontrar el ID de la asignación específica para borrarla
-        const asignacionParaBorrar = asignacionesProfesional.find(a => a.servicio.id === serviceId);
-        if (asignacionParaBorrar) {
-           // 2. Usar el ID de la asignación (asignacionParaBorrar.id)
-           await quitarServicio(asignacionParaBorrar.id); // CAMBIADO
-           
-           toast({ title: "Éxito", description: "Servicio desasignado." });
-        } else {
-            toast({ variant: "destructive", title: "Error", description: "No se encontró la asignación para eliminar." });
+
+        if (!isCancelled) setAsignaciones(data);
+      } finally {
+        if (!isCancelled) {
+          setLoadingAsign(false);
+          setIsSwitching(false);
         }
       }
-      // Recargar asignaciones después del cambio
-      const updatedAsignaciones = await listAsignaciones({ profesional_id: profesionalId });
-      setAsignacionesProfesional(updatedAsignaciones);
-    } catch (err: any) {
-      const errorMsg = err?.response?.data ? JSON.stringify(err.response.data) : err.message;
-      toast({ variant: "destructive", title: "Error al actualizar", description: errorMsg });
+    };
+
+    loadAsign();
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedProfesionalId]);
+
+  const assignedIds = new Set(asignaciones.map((a) => a.service));
+
+  const toggleService = async (serviceId: number, checked: boolean) => {
+    if (!selectedProfesionalId) return;
+
+    const currentProfId = selectedProfesionalId;
+    setSaving(true);
+
+    try {
+      if (checked) {
+        await asignarServicio({
+          professional: currentProfId,
+          service: serviceId,
+        });
+      } else {
+        const asign = asignaciones.find((a) => a.service === serviceId);
+        if (asign) {
+          await quitarServicio(asign.id);
+        }
+      }
+
+      if (selectedProfesionalId === currentProfId) {
+        const updated = await listAsignaciones({
+          professional_id: currentProfId,
+        });
+
+        if (selectedProfesionalId === currentProfId) {
+          setAsignaciones(updated);
+        }
+      }
+
+      toast({
+        title: "Éxito",
+        description: checked ? "Servicio asignado" : "Servicio removido",
+      });
     } finally {
       setSaving(false);
     }
   };
 
-  const getAssignedServiceIds = () => {
-    return new Set(asignacionesProfesional.map(a => a.servicio.id));
-  };
-
-  const assignedServiceIds = getAssignedServiceIds();
-
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-3xl font-bold text-foreground">Asignar Servicios a Profesionales</h1>
+      <h1 className="text-3xl font-bold text-foreground">Asignar Servicios</h1>
 
-      <Card>
+      {/* SELECT PROFESIONAL */}
+      <Card className="border border-border bg-card">
         <CardHeader>
-          <CardTitle>Seleccionar Profesional</CardTitle>
+          <CardTitle className="text-foreground">Profesional</CardTitle>
         </CardHeader>
         <CardContent>
-          {loadingProfesionales ? (
-            <p>Cargando profesionales...</p>
+          {loadingProf ? (
+            <p className="text-muted-foreground">Cargando profesionales...</p>
           ) : (
-            <Select onValueChange={setSelectedProfesionalId} value={selectedProfesionalId}>
-              <SelectTrigger className="w-full md:w-1/2">
-                <SelectValue placeholder="Seleccione un profesional..." />
-              </SelectTrigger>
-              <SelectContent>
-                {profesionales.map(prof => (
-                  <SelectItem key={prof.id} value={String(prof.id)}>
-                    {prof.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select
+              className="
+                w-full md:w-1/2 p-2 rounded-md border border-border
+                bg-background text-foreground
+              "
+              value={selectedProfesionalId ?? ""}
+              onChange={(e) => setSelectedProfesionalId(Number(e.target.value))}
+              disabled={saving}
+            >
+              <option value="">Seleccione...</option>
+              {profesionales.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.first_name} {p.last_name}
+                </option>
+              ))}
+            </select>
           )}
         </CardContent>
       </Card>
 
+      {/* LISTA DE SERVICIOS */}
       {selectedProfesionalId && (
-        <Card>
+        <Card className="border border-border bg-card">
           <CardHeader>
-            <CardTitle>Servicios Asignados</CardTitle>
+            <CardTitle className="text-foreground">
+              Servicios del profesional
+            </CardTitle>
           </CardHeader>
+
           <CardContent>
-            {loadingServicios || loadingAsignaciones ? (
-              <p>Cargando servicios y asignaciones...</p>
-            ) : servicios.length === 0 ? (
-                <p className="text-muted-foreground">No hay servicios creados. Añade servicios primero.</p>
+            {isSwitching || loadingAsign || loadingServ ? (
+              <p className="text-muted-foreground">Cargando servicios...</p>
             ) : (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Marca los servicios que realiza {profesionales.find(p => String(p.id) === selectedProfesionalId)?.nombre || 'este profesional'}.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {servicios.map(servicio => (
-                    <div key={servicio.id} className="flex items-center space-x-2 p-3 border rounded-md">
-                      <Checkbox
-                        id={`service-${servicio.id}`}
-                        checked={assignedServiceIds.has(servicio.id)}
-                        onCheckedChange={(checked) => handleServiceAssignmentChange(servicio.id, !!checked)}
-                        disabled={saving} // Deshabilitar mientras guarda
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {servicios.map((s) => {
+                  const checked = assignedIds.has(s.id);
+
+                  return (
+                    <label
+                      key={s.id}
+                      className="
+                        flex items-center space-x-3 p-3 rounded-md border border-border
+                        bg-muted/30 hover:bg-muted transition-colors cursor-pointer
+                      "
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => toggleService(s.id, e.target.checked)}
+                        disabled={saving}
+                        className="cursor-pointer accent-primary"
                       />
-                      <Label htmlFor={`service-${servicio.id}`} className="cursor-pointer">
-                        {servicio.nombre} ({servicio.duracion_min} min)
-                      </Label>
-                      {/* Podrías añadir aquí un Input pequeño para duracion_override_min si es necesario */}
-                    </div>
-                  ))}
-                </div>
-                 {saving && <p className="text-sm text-blue-500 mt-4">Guardando cambios...</p>}
+
+                      <span
+                        className={`text-sm ${
+                          saving ? "opacity-50" : "text-foreground"
+                        }`}
+                      >
+                        {s.name} ({s.duration_min} min)
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
+            )}
+
+            {saving && (
+              <p className="text-sm text-blue-500 mt-2">Guardando cambios...</p>
             )}
           </CardContent>
         </Card>
       )}
     </div>
   );
-};
-
-export default AdminAssignmentsPage;
+}

@@ -1,27 +1,49 @@
-// revitek/front/src/api/profesionales.ts
+// ===== profesionales.ts =====
+// src/api/profesionales.ts
 import http from "./http";
 
-export interface Profesional {
+export interface Professional {
   id: number;
-  nombre: string;
+  first_name: string;
+  last_name: string;
   email?: string;
-  telefono?: string;
-  activo?: boolean;
-  color_calendario?: string;
+  phone?: string;
+  active?: boolean;
+  accepts_reservations?: boolean;
+  calendar_color?: string;
+  bio?: string;
 }
 
-export async function listProfesionales(): Promise<Profesional[]> {
-  const { data } = await http.get("/api/profesionales/profesionales/"); // Ajusta la ruta si es necesario
+export async function listProfesionales(): Promise<Professional[]> {
+  const { data } = await http.get("/agenda/professionals/");
   return data;
 }
 
-export async function createProfesional(payload: { nombre: string; email?: string; telefono?: string }): Promise<Profesional> {
-  const { data } = await http.post("/api/profesionales/profesionales/", payload);
+export async function createProfesional(payload: {
+  first_name: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  calendar_color?: string;
+  bio?: string;
+}): Promise<Professional> {
+  const { data } = await http.post("/agenda/professionals/", payload);
   return data;
 }
 
 export async function deleteProfesional(id: number): Promise<void> {
-  await http.delete(`/api/profesionales/profesionales/${id}/`);
+  await http.delete(`/agenda/professionals/${id}/`);
 }
 
-// Puedes añadir getProfesional(id), updateProfesional(id, payload) si los necesitas
+export async function updateProfesional(
+  id: number,
+  payload: Partial<Professional>
+): Promise<Professional> {
+  const { data } = await http.put(`/agenda/professionals/${id}/`, payload);
+  return data;
+}
+
+export async function getProfesional(id: number): Promise<Professional> {
+  const { data } = await http.get(`/agenda/professionals/${id}/`);
+  return data;
+}

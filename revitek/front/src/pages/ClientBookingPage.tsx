@@ -6,7 +6,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { listAllServicios } from '@/api/servicios';
 import { getAggregatedAvailability, createReserva, ReservaPayload } from '@/api/agenda';
+import { listRegions, listCommunes, Region, Commune, lookupClient } from '@/api/clientes';
+import { toast } from "sonner";
 import { useEffect, useState, useRef } from 'react';
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
 // Tipos para el formulario
 interface FormularioReserva {
@@ -17,24 +20,37 @@ interface FormularioReserva {
     direccion: string;
     patente: string;
     marca: string;
+    modelo: string;
     observaciones: string;
 }
 
 function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceIdsProp?: number[]; onClose?: () => void }) {
+    const { executeRecaptcha } = useGoogleReCaptcha();
     const [params] = useSearchParams();
     const serviceId = params.get('service_id');
     const servicesParam = params.get('services');
     const selectedServiceIds = selectedServiceIdsProp ?? (servicesParam ? servicesParam.split(',').map(x => Number(x)).filter(Boolean) : (serviceId ? [Number(serviceId)] : []));
 
     const [aggregatedSlots, setAggregatedSlots] = useState<any[]>([]);
-    const todayIso = new Date().toISOString().slice(0, 10);
-    const [selectedDate, setSelectedDate] = useState<string>(todayIso);
-    
+
+    // Calcular fecha mínima (mañana)
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const minDateIso = tomorrow.toISOString().slice(0, 10);
+
+    const [selectedDate, setSelectedDate] = useState<string>(minDateIso);
+
     // Estado para el slot seleccionado
     const [selectedSlot, setSelectedSlot] = useState<any | null>(null);
-    
+
+    // Estados para regiones y comunas
+    const [regions, setRegions] = useState<Region[]>([]);
+    const [communes, setCommunes] = useState<Commune[]>([]);
+    const [filteredCommunes, setFilteredCommunes] = useState<Commune[]>([]);
+
     // Estado del formulario
-    const [formulario, setFormulario] = useState<FormularioReserva>({
+    const [formulario, setFormulario] = useState<FormularioReserva & { regionId: string; communeId: string }>({
         nombre: '',
         apellido: '',
         email: '',
@@ -42,17 +58,40 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
         direccion: '',
         patente: '',
         marca: '',
-        observaciones: ''
+        modelo: '',
+        observaciones: '',
+        regionId: '',
+        communeId: ''
     });
-    
+
     // Estados de UI
     const [showForm, setShowForm] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState<Partial<FormularioReserva>>({});
-    
+    const [errors, setErrors] = useState<Partial<FormularioReserva & { regionId: string; communeId: string }>>({});
+
     // Refs para scroll
     const formularioRef = useRef<HTMLDivElement>(null);
     const selectorHorariosRef = useRef<HTMLDivElement>(null);
+
+    // Cargar regiones y comunas
+    useEffect(() => {
+        Promise.all([listRegions(), listCommunes()])
+            .then(([regs, coms]) => {
+                setRegions(regs);
+                setCommunes(coms);
+            })
+            .catch(err => console.error("Error loading regions/communes", err));
+    }, []);
+
+    // Filtrar comunas cuando cambia la región
+    useEffect(() => {
+        if (formulario.regionId) {
+            const filtered = communes.filter(c => c.region.id === Number(formulario.regionId));
+            setFilteredCommunes(filtered);
+        } else {
+            setFilteredCommunes([]);
+        }
+    }, [formulario.regionId, communes]);
 
     useEffect(() => {
         let cancelled = false;
@@ -67,9 +106,10 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
                 const norm = (data || []).map((d: any) => ({
                     inicio: d.inicio,
                     fin: d.fin,
-                    profes: d.profes || d.profesionales || [],
-                    slotIds: d.slot_ids || d.slotIds || []
+                    professionals: d.professionals || [],
+                    slot_ids: d.slot_ids || [],
                 }));
+
                 setAggregatedSlots(norm);
             } catch (e) {
                 console.error('aggregated availability error', e);
@@ -80,10 +120,11 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
         return () => { cancelled = true; };
     }, [JSON.stringify(selectedServiceIds), selectedDate]);
 
+
     // Validación del formulario
     const validateForm = (): boolean => {
-        const newErrors: Partial<FormularioReserva> = {};
-        
+        const newErrors: Partial<typeof formulario> = {};
+
         if (!formulario.nombre.trim()) newErrors.nombre = 'Nombre es requerido';
         if (!formulario.apellido.trim()) newErrors.apellido = 'Apellido es requerido';
         if (!formulario.email.trim()) {
@@ -93,20 +134,55 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
         }
         if (!formulario.telefono.trim()) newErrors.telefono = 'Teléfono es requerido';
         if (!formulario.direccion.trim()) newErrors.direccion = 'Dirección es requerida';
+        if (!formulario.regionId) newErrors.regionId = 'Región es requerida';
+        if (!formulario.communeId) newErrors.communeId = 'Comuna es requerida';
         if (!formulario.patente.trim()) newErrors.patente = 'Patente es requerida';
         if (!formulario.marca.trim()) newErrors.marca = 'Marca es requerida';
-        
+        if (!formulario.modelo.trim()) newErrors.modelo = 'Modelo es requerido';
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
     // Handler para cambios en el formulario
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormulario(prev => ({ ...prev, [name]: value }));
         // Limpiar error del campo al escribir
-        if (errors[name as keyof FormularioReserva]) {
+        if (errors[name as keyof typeof errors]) {
             setErrors(prev => ({ ...prev, [name]: undefined }));
+        }
+    };
+
+    // Lookup client on blur
+    const handleLookup = async (field: 'email' | 'telefono') => {
+        const value = formulario[field];
+        if (!value || value.length < 4) return;
+
+        try {
+            const params = field === 'email' ? { email: value } : { phone: value };
+            const data = await lookupClient(params);
+
+            if (data.found) {
+                setFormulario(prev => ({
+                    ...prev,
+                    nombre: data.first_name || prev.nombre,
+                    apellido: data.last_name || prev.apellido,
+                    email: data.email || prev.email,
+                    telefono: data.phone || prev.telefono,
+                    // Auto-fill vehicle if available
+                    patente: data.vehicle?.license_plate || prev.patente,
+                    marca: data.vehicle?.brand || prev.marca,
+                    modelo: data.vehicle?.model || prev.modelo,
+                    // Auto-fill address if available
+                    direccion: data.address?.street || prev.direccion,
+                    regionId: data.address?.commune?.region?.id?.toString() || prev.regionId,
+                    communeId: data.address?.commune?.id?.toString() || prev.communeId,
+                }));
+                toast.success("¡Datos encontrados! Hemos completado el formulario por ti.");
+            }
+        } catch (e) {
+            // Silent fail if not found
         }
     };
 
@@ -123,55 +199,68 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
     // Confirmar reserva
     const handleConfirmReserva = async () => {
         if (!selectedSlot || selectedServiceIds.length === 0) return;
-        
+
         if (!validateForm()) {
-            alert('Por favor completa todos los campos requeridos correctamente.');
+            toast.error('Por favor completa todos los campos requeridos correctamente.');
             return;
         }
 
-        const profesional_id = selectedSlot.profes[0];
-        const slot_id = Array.isArray(selectedSlot.slotIds) && selectedSlot.slotIds.length 
-            ? selectedSlot.slotIds[0] 
-            : (Array.isArray((selectedSlot as any).slot_ids) ? (selectedSlot as any).slot_ids[0] : undefined);
-        
+        // backend returns professionals → not profes
+        const professional_id = selectedSlot.professionals[0];
+        const slot_id = selectedSlot.slot_ids[0];
+
         if (!slot_id) {
-            alert('Error: No se pudo encontrar un ID de slot para esta reserva.');
+            toast.error('No se encontró un slot válido.');
             return;
         }
-
-        const serviciosPayload = selectedServiceIds.map(sid => ({ 
-            servicio_id: Number(sid), 
-            profesional_id 
-        }));
-
-        const payload: ReservaPayload = {
-            cliente: {
-                nombre: formulario.nombre.trim(),
-                apellido: formulario.apellido.trim(),
-                email: formulario.email.trim().toLowerCase(),
-                telefono: formulario.telefono.trim()
-            },
-            vehiculo: {
-                patente: formulario.patente.trim().toUpperCase(),
-                marca: formulario.marca.trim(),
-                modelo: '' // Podrías añadir este campo si lo necesitas
-            },
-            direccion: {
-                direccion_completa: formulario.direccion.trim(),
-                alias: 'Principal'
-            },
-            profesional_id: profesional_id,
-            servicios: serviciosPayload,
-            slot_id: slot_id,
-            nota: formulario.observaciones.trim()
-        };
 
         setLoading(true);
+
         try {
+            // Get reCAPTCHA token
+            if (!executeRecaptcha) {
+                toast.error('reCAPTCHA no disponible. Por favor recarga la página.');
+                setLoading(false);
+                return;
+            }
+
+            const recaptchaToken = await executeRecaptcha('submit_reservation');
+
+            const payload: ReservaPayload = {
+                client: {
+                    email: formulario.email.trim(),
+                    first_name: formulario.nombre.trim(),
+                    last_name: formulario.apellido.trim(),
+                    phone: formulario.telefono.trim()
+                },
+                vehicle: {
+                    license_plate: formulario.patente.toUpperCase(),
+                    brand: formulario.marca.trim(),
+                    model: formulario.modelo.trim(),
+                },
+                address: {
+                    street: formulario.direccion.trim(),
+                    number: "S/N",
+                    commune_id: Number(formulario.communeId),
+                    alias: "Principal"
+                },
+                slot_id,
+                professional_id,
+                services: selectedServiceIds.map(id => ({
+                    service_id: id,
+                    professional_id
+                })),
+                note: formulario.observaciones || "",
+                recaptcha_token: recaptchaToken
+            };
+
             const res = await createReserva(payload);
-            alert(`✅ Reserva creada exitosamente!\n\nNúmero de reserva: ${res.id}\n\nRecibirás una confirmación por email.`);
-            
-            // Limpiar formulario
+
+            toast.success(`Reserva creada exitosamente! Número de reserva: ${res.id}`);
+
+            setShowForm(false);
+            setSelectedSlot(null);
+
             setFormulario({
                 nombre: '',
                 apellido: '',
@@ -180,24 +269,31 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
                 direccion: '',
                 patente: '',
                 marca: '',
-                observaciones: ''
+                modelo: '',
+                observaciones: '',
+                regionId: '',
+                communeId: ''
             });
-            setShowForm(false);
-            setSelectedSlot(null);
-            
+
             if (onClose) onClose();
         } catch (e: any) {
             console.error(e);
-            const errorMsg = e?.response?.data ? JSON.stringify(e.response.data) : (e.message || 'unknown');
-            alert('❌ Error al crear reserva: ' + errorMsg);
+            const msg = e?.response?.data ? JSON.stringify(e.response.data) : e.message;
+            toast.error('Error al crear reserva: ' + msg);
         } finally {
             setLoading(false);
         }
     };
 
+
     // Helper: Calendario mensual
-    function MonthCalendar({ selectedDate, onSelectDate }: { selectedDate: string; onSelectDate: (iso: string) => void }) {
-        const [monthOffset, setMonthOffset] = useState(0);
+    function MonthCalendar({ selectedDate, onSelectDate, minDate }: { selectedDate: string; onSelectDate: (iso: string) => void; minDate: string }) {
+        // Calculate initial month offset based on selectedDate instead of always starting from current month
+        const selectedDateObj = new Date(selectedDate);
+        const today = new Date();
+        const initialOffset = (selectedDateObj.getFullYear() - today.getFullYear()) * 12 + (selectedDateObj.getMonth() - today.getMonth());
+
+        const [monthOffset, setMonthOffset] = useState(initialOffset);
         const base = new Date();
         const display = new Date(base.getFullYear(), base.getMonth() + monthOffset, 1);
         const year = display.getFullYear();
@@ -212,17 +308,17 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
             const cells: { iso: string; label: number; inMonth: boolean }[] = [];
             const prevDays = firstDayWeekday;
             const prevMonthLastDay = new Date(year, month, 0).getDate();
-            
+
             for (let i = prevDays - 1; i >= 0; i--) {
                 const d = new Date(year, month - 1, prevMonthLastDay - i);
                 cells.push({ iso: d.toISOString().slice(0, 10), label: d.getDate(), inMonth: false });
             }
-            
+
             for (let d = 1; d <= daysInMonth; d++) {
                 const date = new Date(year, month, d);
                 cells.push({ iso: date.toISOString().slice(0, 10), label: d, inMonth: true });
             }
-            
+
             while (cells.length % 7 !== 0) {
                 const d = new Date(year, month + 1, cells.length - prevDays - daysInMonth + 1);
                 cells.push({ iso: d.toISOString().slice(0, 10), label: d.getDate(), inMonth: false });
@@ -245,15 +341,22 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
                     ))}
                 </div>
                 <div className="grid grid-cols-7 gap-1 mt-2">
-                    {cells.map((c) => (
-                        <button 
-                            key={c.iso} 
-                            onClick={() => onSelectDate(c.iso)} 
-                            className={`p-2 rounded ${c.inMonth ? '' : 'text-muted-foreground'} ${selectedDate === c.iso ? 'bg-primary text-primary-foreground' : 'hover:bg-muted/20'}`}
-                        >
-                            {c.label}
-                        </button>
-                    ))}
+                    {cells.map((c) => {
+                        const isDisabled = c.iso < minDate;
+                        return (
+                            <button
+                                key={c.iso}
+                                onClick={() => !isDisabled && onSelectDate(c.iso)}
+                                disabled={isDisabled}
+                                className={`p-2 rounded 
+                                    ${c.inMonth ? '' : 'text-muted-foreground'} 
+                                    ${selectedDate === c.iso ? 'bg-primary text-primary-foreground' : (isDisabled ? 'opacity-50 cursor-not-allowed line-through' : 'hover:bg-muted/20')}
+                                `}
+                            >
+                                {c.label}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
         );
@@ -273,8 +376,8 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
                     <CardHeader>
                         <CardTitle className="flex items-center justify-between">
                             <span>📋 Completa tus datos para confirmar la reserva</span>
-                            <Button 
-                                variant="ghost" 
+                            <Button
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => {
                                     setShowForm(false);
@@ -327,6 +430,7 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
                                     type="email"
                                     value={formulario.email}
                                     onChange={handleInputChange}
+                                    onBlur={() => handleLookup('email')}
                                     placeholder="juan@example.com"
                                     className={errors.email ? 'border-red-500' : ''}
                                 />
@@ -341,10 +445,48 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
                                     name="telefono"
                                     value={formulario.telefono}
                                     onChange={handleInputChange}
+                                    onBlur={() => handleLookup('telefono')}
                                     placeholder="+56 9 1234 5678"
                                     className={errors.telefono ? 'border-red-500' : ''}
                                 />
                                 {errors.telefono && <p className="text-xs text-red-500 mt-1">{errors.telefono}</p>}
+                            </div>
+
+                            {/* Región */}
+                            <div>
+                                <Label htmlFor="regionId">Región *</Label>
+                                <select
+                                    id="regionId"
+                                    name="regionId"
+                                    value={formulario.regionId}
+                                    onChange={handleInputChange}
+                                    className={`w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${errors.regionId ? 'border-red-500' : ''}`}
+                                >
+                                    <option value="">Seleccione una región</option>
+                                    {regions.map(r => (
+                                        <option key={r.id} value={r.id}>{r.name}</option>
+                                    ))}
+                                </select>
+                                {errors.regionId && <p className="text-xs text-red-500 mt-1">{errors.regionId}</p>}
+                            </div>
+
+                            {/* Comuna */}
+                            <div>
+                                <Label htmlFor="communeId">Comuna *</Label>
+                                <select
+                                    id="communeId"
+                                    name="communeId"
+                                    value={formulario.communeId}
+                                    onChange={handleInputChange}
+                                    disabled={!formulario.regionId}
+                                    className={`w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${errors.communeId ? 'border-red-500' : ''}`}
+                                >
+                                    <option value="">Seleccione una comuna</option>
+                                    {filteredCommunes.map(c => (
+                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                </select>
+                                {errors.communeId && <p className="text-xs text-red-500 mt-1">{errors.communeId}</p>}
                             </div>
 
                             {/* Dirección */}
@@ -355,7 +497,7 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
                                     name="direccion"
                                     value={formulario.direccion}
                                     onChange={handleInputChange}
-                                    placeholder="Av. Providencia 1234, Providencia"
+                                    placeholder="Av. Providencia 1234"
                                     className={errors.direccion ? 'border-red-500' : ''}
                                 />
                                 {errors.direccion && <p className="text-xs text-red-500 mt-1">{errors.direccion}</p>}
@@ -389,6 +531,20 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
                                 {errors.marca && <p className="text-xs text-red-500 mt-1">{errors.marca}</p>}
                             </div>
 
+                            {/* Modelo */}
+                            <div>
+                                <Label htmlFor="modelo">Modelo del Vehículo *</Label>
+                                <Input
+                                    id="modelo"
+                                    name="modelo"
+                                    value={formulario.modelo}
+                                    onChange={handleInputChange}
+                                    placeholder="Yaris, Sail, etc."
+                                    className={errors.modelo ? 'border-red-500' : ''}
+                                />
+                                {errors.modelo && <p className="text-xs text-red-500 mt-1">{errors.modelo}</p>}
+                            </div>
+
                             {/* Observaciones */}
                             <div className="md:col-span-2">
                                 <Label htmlFor="observaciones">Observaciones</Label>
@@ -404,8 +560,8 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
                         </div>
 
                         <div className="flex justify-end space-x-3 mt-6">
-                            <Button 
-                                variant="outline" 
+                            <Button
+                                variant="outline"
                                 onClick={() => {
                                     setShowForm(false);
                                     setSelectedSlot(null);
@@ -414,7 +570,7 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
                             >
                                 Cancelar
                             </Button>
-                            <Button 
+                            <Button
                                 onClick={handleConfirmReserva}
                                 disabled={loading}
                                 className="bg-emerald-500 hover:bg-emerald-600"
@@ -436,14 +592,14 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
                                 {onClose && <Button variant="ghost" onClick={onClose}>Cerrar</Button>}
                             </div>
                             <div className="space-y-3">
-                                <input 
-                                    type="date" 
-                                    value={selectedDate} 
-                                    onChange={(e) => setSelectedDate(e.target.value)} 
-                                    className="w-full rounded-md px-3 py-2 border border-border bg-input" 
+                                <input
+                                    type="date"
+                                    value={selectedDate}
+                                    onChange={(e) => setSelectedDate(e.target.value)}
+                                    className="w-full rounded-md px-3 py-2 border border-border bg-input"
                                 />
                                 <div>
-                                    <MonthCalendar selectedDate={selectedDate} onSelectDate={(iso) => setSelectedDate(iso)} />
+                                    <MonthCalendar selectedDate={selectedDate} onSelectDate={(iso) => setSelectedDate(iso)} minDate={minDateIso} />
                                 </div>
                             </div>
                         </div>
@@ -474,10 +630,10 @@ function ServiceBooking({ selectedServiceIdsProp, onClose }: { selectedServiceId
                                                         <div key={idx} className="flex items-center justify-between p-3 border rounded bg-card">
                                                             <div>
                                                                 <div className="font-semibold">{timeLabel}</div>
-                                                                <div className="text-sm text-muted-foreground">{s.profes.length} profesional(es) disponibles</div>
+                                                                <div className="text-sm text-muted-foreground">{s.professionals.length} profesional(es) disponibles</div>
                                                             </div>
                                                             <div>
-                                                                <Button 
+                                                                <Button
                                                                     onClick={() => handleSelectSlot(s)}
                                                                     className="bg-emerald-500 hover:bg-emerald-600"
                                                                 >
@@ -511,24 +667,47 @@ function ServicesArea() {
     useEffect(() => {
         listAllServicios()
             .then((data) => {
-                setServices(data || []);
-                const g: Record<string, any[]> = {};
-                (data || []).forEach((s: any) => {
-                    const cat = s.categoria && s.categoria.trim() ? s.categoria.trim().toUpperCase() : 'OTROS';
-                    if (!g[cat]) g[cat] = [];
-                    g[cat].push(s);
+                if (!data || !Array.isArray(data)) {
+                    setServices([]);
+                    return;
+                }
+
+                // Normalizamos el formato de servicio
+                const normalized = data.map((s: any) => ({
+                    id: s.id,
+                    nombre: s.name,
+                    descripcion: s.description,
+                    duracion_min: s.duration_min,
+                    precio: s.price,
+                    categoria: (typeof s.category === 'string' ? s.category : s.category?.name) ?? 'OTROS',
+                }));
+
+                setServices(normalized);
+
+                // Agrupación por categoría
+                const grouped: Record<string, any[]> = {};
+
+                normalized.forEach((s: any) => {
+                    const cat = s.categoria?.trim().toUpperCase() || 'OTROS';
+                    if (!grouped[cat]) grouped[cat] = [];
+                    grouped[cat].push(s);
                 });
-                setGroups(g);
-                const first = Object.keys(g)[0];
-                const e: Record<string, boolean> = {};
-                Object.keys(g).forEach((k) => { e[k] = k === first; });
-                setExpanded(e);
+
+                setGroups(grouped);
+
+                // Primera categoría expandida
+                const first = Object.keys(grouped)[0];
+                const exp: Record<string, boolean> = {};
+                Object.keys(grouped).forEach((k) => { exp[k] = k === first; });
+                setExpanded(exp);
             })
-            .catch(() => {
+            .catch((err) => {
+                console.error("Error cargando servicios:", err);
                 setServices([]);
                 setGroups({});
             });
     }, []);
+
 
     const toggleCategory = (cat: string) => {
         setExpanded((prev) => ({ ...prev, [cat]: !prev[cat] }));
@@ -598,11 +777,11 @@ function ServicesArea() {
                 });
                 return cats.map((cat) => (
                     <div key={cat} className="mb-4">
-                        <div 
-                            onClick={() => toggleCategory(cat)} 
-                            role="button" 
-                            tabIndex={0} 
-                            className="flex items-center justify-between bg-muted/40 px-4 py-3 rounded-md border border-border cursor-pointer" 
+                        <div
+                            onClick={() => toggleCategory(cat)}
+                            role="button"
+                            tabIndex={0}
+                            className="flex items-center justify-between bg-muted/40 px-4 py-3 rounded-md border border-border cursor-pointer"
                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleCategory(cat); }}
                         >
                             <div className="font-semibold text-sm text-foreground">{cat}</div>
@@ -633,8 +812,8 @@ function ServicesArea() {
                                             </div>
 
                                             <div className="mt-auto flex justify-end">
-                                                <Button 
-                                                    onClick={() => handleScheduleService(s.id)} 
+                                                <Button
+                                                    onClick={() => handleScheduleService(s.id)}
                                                     className="bg-emerald-500"
                                                 >
                                                     Agendar servicio
@@ -646,16 +825,16 @@ function ServicesArea() {
                                             <div className="absolute left-4 right-4 bottom-4 bg-card border rounded-md p-3 shadow-md">
                                                 <div className="flex items-center justify-between">
                                                     <label className="flex items-center space-x-2">
-                                                        <input 
-                                                            type="checkbox" 
-                                                            checked={selectedServices.includes(s.id)} 
-                                                            onChange={() => toggleSelectService(s.id)} 
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedServices.includes(s.id)}
+                                                            onChange={() => toggleSelectService(s.id)}
                                                         />
                                                         <span className="text-sm">Seleccionar este servicio</span>
                                                     </label>
                                                     <div>
-                                                        <Button 
-                                                            onClick={() => { toggleSelectService(s.id); setOpenDropdown(null); }} 
+                                                        <Button
+                                                            onClick={() => { toggleSelectService(s.id); setOpenDropdown(null); }}
                                                             variant="outline"
                                                         >
                                                             Agregar
@@ -684,17 +863,19 @@ function ServicesArea() {
 function ClientBookingPage() {
     return (
         <div className="min-h-screen bg-background text-foreground">
-            <header className="p-4 border-b border-border flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-primary">Agenda tu Servicio</h1>
-                <Button asChild variant="outline">
-                    <Link to="/login">Login</Link>
-                </Button>
+            <header className="border-b border-border">
+                <div className="container mx-auto p-4 flex justify-between items-center">
+                    <h1 className="text-2xl font-bold text-primary">Agenda tu Servicio</h1>
+                    <Button asChild variant="outline">
+                        <Link to="/login">Login</Link>
+                    </Button>
+                </div>
             </header>
 
-            <main className="p-8">
+            <main className="container mx-auto p-4 md:p-8">
                 <h2 className="text-xl font-semibold mb-6">Agendar servicio</h2>
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    <aside className="col-span-1">
+                    <aside className="hidden lg:block col-span-1">
                         <div className="mb-4">
                             <input placeholder="¿Qué servicio buscas?" className="w-full rounded-md px-3 py-2 border border-border bg-input" />
                         </div>

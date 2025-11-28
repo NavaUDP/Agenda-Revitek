@@ -1,10 +1,10 @@
 // revitek/front/src/pages/ProfessionalsPage.tsx
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trash2, PlusCircle } from 'lucide-react';
+import { Trash2, PlusCircle, Edit } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { createProfesional, deleteProfesional, Profesional } from '@/api/profesionales'; // Importa funciones API
+import { createProfesional, deleteProfesional, Professional } from '@/api/profesionales'; // Importa funciones API
 import { useState } from 'react'; // Importa useState para el loading local
 
 // Ajusta el tipo de contexto para usar Profesional y string ID
@@ -15,6 +15,7 @@ type AdminContextType = {
 };
 
 const ProfessionalsPage = () => {
+    const navigate = useNavigate();
     // Ahora el context también tiene 'loading'
     const { resources, setResources, loading: initialLoading } = useOutletContext<AdminContextType>();
     const [localLoading, setLocalLoading] = useState(false); // Loading para acciones de esta página
@@ -22,15 +23,34 @@ const ProfessionalsPage = () => {
     const handleAddProfessional = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const form = event.currentTarget;
-        const input = form.elements.namedItem('professionalName') as HTMLInputElement;
-        const name = input.value.trim();
 
-        if (name) {
+        const firstNameInput = form.elements.namedItem('firstName') as HTMLInputElement;
+        const lastNameInput = form.elements.namedItem('lastName') as HTMLInputElement;
+        const emailInput = form.elements.namedItem('email') as HTMLInputElement;
+        const phoneInput = form.elements.namedItem('phone') as HTMLInputElement;
+        const colorInput = form.elements.namedItem('color') as HTMLInputElement;
+        const bioInput = form.elements.namedItem('bio') as HTMLTextAreaElement;
+
+        const firstName = firstNameInput.value.trim();
+        const lastName = lastNameInput.value.trim();
+
+        if (firstName && lastName) {
             setLocalLoading(true);
             try {
-                const newProfessionalApi = await createProfesional({ nombre: name });
+                const newProfessionalApi = await createProfesional({
+                    first_name: firstName,
+                    last_name: lastName,
+                    email: emailInput.value.trim() || undefined,
+                    phone: phoneInput.value.trim() || undefined,
+                    calendar_color: colorInput.value || undefined,
+                    bio: bioInput.value.trim() || undefined
+                });
+
                 // Mapea al formato esperado por el estado 'resources'
-                const newResource = { id: String(newProfessionalApi.id), title: newProfessionalApi.nombre };
+                const newResource = {
+                    id: String(newProfessionalApi.id),
+                    title: `${newProfessionalApi.first_name} ${newProfessionalApi.last_name}`.trim()
+                };
                 setResources(prev => [...prev, newResource]);
                 form.reset();
             } catch (error) {
@@ -58,7 +78,7 @@ const ProfessionalsPage = () => {
             setResources(prev => prev.filter(res => res.id !== id));
         } catch (error) {
             console.error("Error deleting professional:", error);
-             // Aquí podrías mostrar un toast o mensaje de error
+            // Aquí podrías mostrar un toast o mensaje de error
         } finally {
             setLocalLoading(false);
         }
@@ -83,9 +103,59 @@ const ProfessionalsPage = () => {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <form onSubmit={handleAddProfessional} className="flex space-x-2">
-                            <Input name="professionalName" placeholder="Nombre del profesional" required disabled={isLoading} />
-                            <Button type="submit" disabled={isLoading}>Añadir</Button>
+                        <form onSubmit={handleAddProfessional} className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label htmlFor="firstName" className="text-sm font-medium">Nombre</label>
+                                    <Input id="firstName" name="firstName" placeholder="Juan" required disabled={isLoading} />
+                                </div>
+                                <div className="space-y-2">
+                                    <label htmlFor="lastName" className="text-sm font-medium">Apellido</label>
+                                    <Input id="lastName" name="lastName" placeholder="Pérez" required disabled={isLoading} />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="email" className="text-sm font-medium">Email</label>
+                                <Input id="email" name="email" type="email" placeholder="juan@ejemplo.com" disabled={isLoading} />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label htmlFor="phone" className="text-sm font-medium">Teléfono</label>
+                                    <Input id="phone" name="phone" placeholder="+56 9 1234 5678" disabled={isLoading} />
+                                </div>
+                                <div className="space-y-2">
+                                    <label htmlFor="color" className="text-sm font-medium">Color Calendario</label>
+                                    <div className="flex items-center space-x-2">
+                                        <Input
+                                            id="color"
+                                            name="color"
+                                            type="color"
+                                            defaultValue="#3b82f6"
+                                            className="w-12 h-10 p-1 cursor-pointer"
+                                            disabled={isLoading}
+                                        />
+                                        <span className="text-xs text-muted-foreground">Selecciona un color</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="bio" className="text-sm font-medium">Biografía / Notas</label>
+                                <textarea
+                                    id="bio"
+                                    name="bio"
+                                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    placeholder="Breve descripción del profesional..."
+                                    maxLength={2000}
+                                    disabled={isLoading}
+                                />
+                            </div>
+
+                            <Button type="submit" className="w-full" disabled={isLoading}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Añadir Profesional
+                            </Button>
                         </form>
                     </CardContent>
                 </Card>
@@ -96,16 +166,21 @@ const ProfessionalsPage = () => {
                         <CardTitle>Lista de Profesionales</CardTitle>
                     </CardHeader>
                     <CardContent>
-                         {resources.length === 0 && !isLoading && (
+                        {resources.length === 0 && !isLoading && (
                             <p className="text-muted-foreground">No hay profesionales registrados.</p>
-                         )}
+                        )}
                         <ul className="space-y-3">
                             {resources.map(res => (
-                                <li key={res.id} className="flex justify-between items-center p-3 bg-muted rounded-md">
+                                <li key={res.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-muted rounded-md gap-3">
                                     <span className="font-medium">{res.title}</span>
-                                    <Button variant="ghost" size="icon" onClick={() => handleDeleteProfessional(res.id)} disabled={isLoading}>
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
+                                    <div className="flex space-x-2 self-end sm:self-auto">
+                                        <Button variant="outline" size="icon" onClick={() => navigate(`/admin/profesionales/${res.id}`)}>
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" onClick={() => handleDeleteProfessional(res.id)} disabled={isLoading}>
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                    </div>
                                 </li>
                             ))}
                         </ul>

@@ -18,7 +18,15 @@ SECRET_KEY = 'django-insecure-nq_qng$kwh=u!tqu8e2cmennda7i(3)ry%abwd6sy48*i*1z)v
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "zeroth-proctodaeal-hattie.ngrok-free.dev",  # dominio ngrok actual
+]
+
+WHATSAPP_TOKEN = "EAAMFZATlZCJKUBPwyEF7CaydB65xdyzmvxNpZCkBTmyQBrTsqSMYrzh6Em7yY6SQANW1xHpKwFRIebW9Q7YaOtdG9JyFptOYMQzIrxGodeZAuYCsACfyzhf3jYSJrf38ZA7WD3BvENfl5cZAIZCOUVIMfavF3NEVZCVGwQM8AhhVonzGX7lZB82JejL0T1Dlb5ZCMZASJIg9CFMqobiqWI4cZAp3oisYFsjUCaYwdVFtWnIxu7PTnvMv7xV3Tw2ZAy9JXZC63hUXDCKBSjjv0KpuT6b3tu"       # Token de acceso permanente o temporal
+WHATSAPP_PHONE_ID = "890108140850018"  # ID del número de WhatsApp
+BACKEND_URL = "http://localhost:8000/api/agenda"
 
 
 # Application definition
@@ -143,6 +151,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:8080",
     "http://127.0.0.1:8080",
+
 ]
 
 # Si tu frontend necesita enviar cookies (para futuros logins de sesión)

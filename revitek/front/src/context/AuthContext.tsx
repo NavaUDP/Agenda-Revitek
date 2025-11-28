@@ -4,24 +4,25 @@ import { createContext, useState, ReactNode, useEffect, useContext } from 'react
 import axios from 'axios';
 import http from '../api/http';
 import { jwtDecode } from 'jwt-decode';
+import { toast } from "sonner";
 
 // --- 1. Definimos los nuevos tipos ---
 
 // Esto debe coincidir con el payload (datos) que pusiste en tu token en Django
 type JwtPayload = {
-    user_id: number;
-    nombre: string;
-    email: string;
-    is_staff: boolean;
-    exp: number; // Timestamp de expiración
+  user_id: number;
+  nombre: string;
+  email: string;
+  is_staff: boolean;
+  exp: number; // Timestamp de expiración
 }
 
 // Este será el objeto 'user' que usará tu app
 type User = {
-    id: number;
-    nombre: string;
-    email: string;
-    is_staff: boolean;
+  id: number;
+  nombre: string;
+  email: string;
+  is_staff: boolean;
 }
 
 // Actualizamos el tipo del Contexto
@@ -42,9 +43,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  
+
   // --- 2. Cambiar isLoading a 'true' por defecto ---
-  const [isLoading, setIsLoading] = useState<boolean>(true); 
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // --- 4. Añadir este useEffect para hidratar el estado ---
   useEffect(() => {
@@ -83,7 +84,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setRefreshToken(data.refresh);
       localStorage.setItem('access_token', data.access);
       localStorage.setItem('refresh_token', data.refresh);
-      
+
       // Decodificar el JWT para obtener la información del usuario
       const decoded: any = jwtDecode(data.access);
       const userData: User = {
@@ -94,9 +95,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       };
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
-      // ... (toast) ...
+      toast.success(`Bienvenido, ${userData.nombre}`);
     } catch (error: any) {
-      // ... (manejo de error) ...
+      console.error("Login error:", error);
+      toast.error('Error al iniciar sesión. Verifica tus credenciales.');
       throw error;
     } finally {
       // --- 6. Quitar setIsLoading(false) de aquí ---

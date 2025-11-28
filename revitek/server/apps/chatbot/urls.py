@@ -1,12 +1,9 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .views import ArbolViewSet, NodoViewSet, SesionChatViewSet
+# apps/chatbot/urls.py
 
-router = DefaultRouter()
-router.register(r'arboles', ArbolViewSet)
-router.register(r'nodos', NodoViewSet)
-router.register(r'sesiones', SesionChatViewSet)
+from django.urls import path
+from .views import whatsapp_webhook
 
 urlpatterns = [
-    path('', include(router.urls)),
+    # Webhook público para Meta (GET para verificación, POST para mensajes)
+    path('webhook/', whatsapp_webhook, name='whatsapp_webhook'),
 ]

@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { User, Car, MapPin, Calendar, Clock, FileText, X } from "lucide-react";
 import { useState } from "react";
-import { cancelReserva } from "@/api/agenda";
+import { cancelReserva, updateReservaStatus } from "@/api/agenda";
+import { toast } from "sonner";
+import { CheckCircle } from "lucide-react";
 
 interface ReservaDetailModalProps {
   isOpen: boolean;
@@ -17,6 +19,7 @@ interface ReservaDetailModalProps {
 
 export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, onRefreshCalendar }: ReservaDetailModalProps) => {
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [cancelledReserva, setCancelledReserva] = useState<any>(null);
 
@@ -25,17 +28,45 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
   const getEstadoBadge = (estado: string) => {
     const variants: Record<string, { variant: any; label: string }> = {
       'RESERVADO': { variant: 'default', label: 'Reservado' },
-      'CONFIRMADO': { variant: 'default', label: 'Confirmado' },
+      'PENDING': { variant: 'warning', label: 'Pendiente' }, // Need to ensure 'warning' variant exists or use 'secondary'
+      'CONFIRMED': { variant: 'default', label: 'Confirmado' },
       'COMPLETADO': { variant: 'outline', label: 'Completado' },
       'CANCELADO': { variant: 'destructive', label: 'Cancelado' },
       'EN_PROGRESO': { variant: 'secondary', label: 'En Progreso' },
     };
-    const config = variants[estado] || { variant: 'default', label: estado };
+    // Fallback for PENDING if warning variant doesn't exist in shadcn default
+    const config = variants[estado] || { variant: 'secondary', label: estado };
+
+    // Custom style for pending if needed
+    if (estado === 'PENDING') {
+      return <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white">Pendiente</Badge>;
+    }
+    if (estado === 'CONFIRMED') {
+      return <Badge className="bg-green-600 hover:bg-green-700 text-white">Confirmado</Badge>;
+    }
+
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
   const handleCancelClick = () => {
     setShowConfirmDialog(true);
+  };
+
+  const handleConfirmReserva = async () => {
+    setIsConfirming(true);
+    try {
+      await updateReservaStatus(reserva.id, 'CONFIRMED');
+      toast.success('Reserva confirmada exitosamente');
+
+      // Refresh and close
+      if (onRefreshCalendar) onRefreshCalendar();
+      onClose();
+    } catch (error) {
+      console.error('Error confirmando reserva:', error);
+      toast.error('Error al confirmar la reserva.');
+    } finally {
+      setIsConfirming(false);
+    }
   };
 
   const handleConfirmCancel = async () => {
@@ -44,12 +75,12 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
       const result = await cancelReserva(reserva.id);
       setCancelledReserva(result);
       setShowConfirmDialog(false);
-      
+
       // Llamar callback si existe
       if (onCancelSuccess) {
         onCancelSuccess();
       }
-      
+
       // Cerrar modal después de 2 segundos para mostrar el mensaje de éxito
       setTimeout(() => {
         onClose();
@@ -60,7 +91,7 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
       }, 2000);
     } catch (error) {
       console.error('Error cancelando reserva:', error);
-      alert('Error al cancelar la reserva. Por favor intenta de nuevo.');
+      toast.error('Error al cancelar la reserva. Por favor intenta de nuevo.');
     } finally {
       setIsCancelling(false);
     }
@@ -94,7 +125,7 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
                 <Calendar className="h-5 w-5 text-primary" />
                 <span>Detalle de Reserva #{reserva.id}</span>
               </DialogTitle>
-              {getEstadoBadge(reserva.estado)}
+              {getEstadoBadge(reserva.status || reserva.estado)}
             </div>
           </DialogHeader>
 
@@ -106,22 +137,22 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
                 <h3 className="font-semibold text-lg">Información del Cliente</h3>
               </div>
               <div className="bg-muted/30 rounded-lg p-4 space-y-2">
-                {reserva.cliente ? (
+                {reserva.client_info ? (
                   <>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <p className="text-sm text-muted-foreground">Nombre Completo</p>
                         <p className="font-medium">
-                          {reserva.cliente.nombre} {reserva.cliente.apellido}
+                          {reserva.client_info.first_name} {reserva.client_info.last_name}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Email</p>
-                        <p className="font-medium">{reserva.cliente.email}</p>
+                        <p className="font-medium">{reserva.client_info.email}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Teléfono</p>
-                        <p className="font-medium">{reserva.cliente.telefono}</p>
+                        <p className="font-medium">{reserva.client_info.phone}</p>
                       </div>
                     </div>
                   </>
@@ -134,7 +165,7 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
             <Separator />
 
             {/* VEHÍCULO */}
-            {reserva.vehiculos && reserva.vehiculos.length > 0 && (
+            {(reserva.vehicle || (reserva.client_vehicles && reserva.client_vehicles.length > 0)) && (
               <>
                 <div>
                   <div className="flex items-center space-x-2 mb-3">
@@ -142,30 +173,54 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
                     <h3 className="font-semibold text-lg">Vehículo</h3>
                   </div>
                   <div className="bg-muted/30 rounded-lg p-4">
-                    {reserva.vehiculos.map((vehiculo: any) => (
-                      <div key={vehiculo.id} className="grid grid-cols-2 gap-2">
+                    {reserva.vehicle ? (
+                      <div className="grid grid-cols-2 gap-2">
                         <div>
                           <p className="text-sm text-muted-foreground">Patente</p>
-                          <p className="font-medium text-lg">{vehiculo.patente}</p>
+                          <p className="font-medium text-lg">{reserva.vehicle.license_plate}</p>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Marca</p>
-                          <p className="font-medium">{vehiculo.marca}</p>
+                          <p className="font-medium">{reserva.vehicle.brand}</p>
                         </div>
-                        {vehiculo.modelo && (
+                        {reserva.vehicle.model && (
                           <div>
                             <p className="text-sm text-muted-foreground">Modelo</p>
-                            <p className="font-medium">{vehiculo.modelo}</p>
+                            <p className="font-medium">{reserva.vehicle.model}</p>
                           </div>
                         )}
-                        {vehiculo.year && (
+                        {reserva.vehicle.year && (
                           <div>
                             <p className="text-sm text-muted-foreground">Año</p>
-                            <p className="font-medium">{vehiculo.year}</p>
+                            <p className="font-medium">{reserva.vehicle.year}</p>
                           </div>
                         )}
                       </div>
-                    ))}
+                    ) : (
+                      <div className="space-y-4">
+                        <p className="text-sm text-yellow-600 font-medium bg-yellow-50 p-2 rounded">
+                          ⚠️ Vehículo no especificado en la reserva. Mostrando vehículos del cliente:
+                        </p>
+                        {reserva.client_vehicles.map((v: any) => (
+                          <div key={v.id} className="grid grid-cols-2 gap-2 border-b border-border pb-2 last:border-0 last:pb-0">
+                            <div>
+                              <p className="text-sm text-muted-foreground">Patente</p>
+                              <p className="font-medium">{v.license_plate}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Marca</p>
+                              <p className="font-medium">{v.brand}</p>
+                            </div>
+                            {v.model && (
+                              <div>
+                                <p className="text-sm text-muted-foreground">Modelo</p>
+                                <p className="font-medium">{v.model}</p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <Separator />
@@ -173,7 +228,7 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
             )}
 
             {/* DIRECCIÓN */}
-            {reserva.direcciones && reserva.direcciones.length > 0 && (
+            {(reserva.address || (reserva.client_addresses && reserva.client_addresses.length > 0)) && (
               <>
                 <div>
                   <div className="flex items-center space-x-2 mb-3">
@@ -181,21 +236,37 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
                     <h3 className="font-semibold text-lg">Dirección de Servicio</h3>
                   </div>
                   <div className="bg-muted/30 rounded-lg p-4">
-                    {reserva.direcciones.map((dir: any) => (
-                      <div key={dir.id} className="space-y-1">
+                    {reserva.address ? (
+                      <div className="space-y-1">
                         <p className="font-medium">
-                          {dir.calle} {dir.numero}
+                          {reserva.address.street} {reserva.address.number}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {dir.comuna}, {dir.ciudad}
+                          {reserva.address.commune}, {reserva.address.region}
                         </p>
-                        {dir.notas_adicionales && (
+                        {reserva.address.notes && (
                           <p className="text-xs text-muted-foreground italic mt-2">
-                            {dir.notas_adicionales}
+                            {reserva.address.notes}
                           </p>
                         )}
                       </div>
-                    ))}
+                    ) : (
+                      <div className="space-y-4">
+                        <p className="text-sm text-yellow-600 font-medium bg-yellow-50 p-2 rounded">
+                          ⚠️ Dirección no especificada en la reserva. Mostrando direcciones del cliente:
+                        </p>
+                        {reserva.client_addresses.map((dir: any) => (
+                          <div key={dir.id} className="space-y-1 border-b border-border pb-2 last:border-0 last:pb-0">
+                            <p className="font-medium">
+                              {dir.street} {dir.number}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {dir.commune}, {dir.region}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <Separator />
@@ -209,12 +280,12 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
                 <h3 className="font-semibold text-lg">Horario</h3>
               </div>
               <div className="bg-muted/30 rounded-lg p-4">
-                {reserva.reservaslot ? (
+                {reserva.slots_summary ? (
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <p className="text-sm text-muted-foreground">Inicio</p>
                       <p className="font-medium">
-                        {new Date(reserva.reservaslot.inicio).toLocaleString('es-CL', {
+                        {new Date(reserva.slots_summary.start).toLocaleString('es-CL', {
                           dateStyle: 'short',
                           timeStyle: 'short',
                         })}
@@ -223,7 +294,7 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
                     <div>
                       <p className="text-sm text-muted-foreground">Fin</p>
                       <p className="font-medium">
-                        {new Date(reserva.reservaslot.fin).toLocaleString('es-CL', {
+                        {new Date(reserva.slots_summary.end).toLocaleString('es-CL', {
                           dateStyle: 'short',
                           timeStyle: 'short',
                         })}
@@ -249,13 +320,13 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
                 <h3 className="font-semibold text-lg">Servicios</h3>
               </div>
               <div className="bg-muted/30 rounded-lg p-4">
-                {reserva.servicios && reserva.servicios.length > 0 ? (
+                {reserva.services && reserva.services.length > 0 ? (
                   <ul className="space-y-2">
-                    {reserva.servicios.map((servicio: any, idx: number) => (
+                    {reserva.services.map((servicio: any, idx: number) => (
                       <li key={idx} className="flex items-center justify-between">
-                        <span>Servicio #{servicio.servicio_id}</span>
+                        <span>{servicio.service_name}</span>
                         <span className="text-sm text-muted-foreground">
-                          {servicio.duracion_min_eff} min
+                          {servicio.effective_duration_min} min
                         </span>
                       </li>
                     ))}
@@ -284,11 +355,27 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
             <Button variant="outline" onClick={onClose}>
               Cerrar
             </Button>
-            {reserva.estado !== 'CANCELADO' && (
-              <Button 
+
+            {/* Botón Confirmar solo si está PENDING */}
+            {(reserva.status === 'PENDING' || reserva.estado === 'PENDING') && (
+              <Button
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={handleConfirmReserva}
+                disabled={isConfirming || isCancelling}
+              >
+                {isConfirming ? 'Confirmando...' : (
+                  <>
+                    <CheckCircle className="mr-2 h-4 w-4" /> Confirmar Reserva
+                  </>
+                )}
+              </Button>
+            )}
+
+            {reserva.estado !== 'CANCELADO' && reserva.status !== 'CANCELADO' && (
+              <Button
                 variant="destructive"
                 onClick={handleCancelClick}
-                disabled={isCancelling}
+                disabled={isCancelling || isConfirming}
               >
                 {isCancelling ? 'Cancelando...' : 'Cancelar Reserva'}
               </Button>
@@ -303,7 +390,7 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
           <DialogHeader>
             <DialogTitle className="text-destructive">Confirmar Cancelación</DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <p className="text-foreground">
               ¿Estás seguro de que deseas cancelar la reserva #{reserva.id}?
@@ -314,14 +401,14 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
           </div>
 
           <div className="flex justify-end space-x-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setShowConfirmDialog(false)}
               disabled={isCancelling}
             >
               No, mantener reserva
             </Button>
-            <Button 
+            <Button
               variant="destructive"
               onClick={handleConfirmCancel}
               disabled={isCancelling}
