@@ -38,6 +38,7 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "zeroth-proctodaeal-hattie.ngrok-free.dev",
     ".ngrok-free.dev",
+    "revitek-backend-production.up.railway.app",  # Railway production
 ]
 
 # Add Railway domains if in production
