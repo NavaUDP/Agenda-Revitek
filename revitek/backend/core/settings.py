@@ -31,14 +31,24 @@ PROJECT_ROOT = BASE_DIR.parent
 SECRET_KEY = 'django-insecure-u5r^24mj-pe7ro^&)5qfwc(4vn)fzja7^3_f()6li&6zck^v3a'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "zeroth-proctodaeal-hattie.ngrok-free.dev",
-    ".ngrok-free.dev"
+    ".ngrok-free.dev",
 ]
+
+# Add Railway domains if in production
+RAILWAY_STATIC_URL = os.environ.get('RAILWAY_STATIC_URL')
+if RAILWAY_STATIC_URL:
+    ALLOWED_HOSTS.append(RAILWAY_STATIC_URL)
+
+# Allow custom domain if provided
+CUSTOM_DOMAIN = os.environ.get('CUSTOM_DOMAIN')
+if CUSTOM_DOMAIN:
+    ALLOWED_HOSTS.append(CUSTOM_DOMAIN)
 
 AUTH_USER_MODEL = "clients.User"
 
@@ -111,15 +121,27 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'OPTIONS': {
-            'service': 'revitek_service',
-            'passfile': PROJECT_ROOT / '.my_pgpass'
+import dj_database_url
+
+# Check if DATABASE_URL is set (for Railway/production)
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+if DATABASE_URL:
+    # Production: Use Railway database
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+    }
+else:
+    # Development: Use local PostgreSQL with service file
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'OPTIONS': {
+                'service': 'revitek_service',
+                'passfile': PROJECT_ROOT / '.my_pgpass'
+            }
         }
     }
-}
 
 
 # Password validation
@@ -157,6 +179,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
