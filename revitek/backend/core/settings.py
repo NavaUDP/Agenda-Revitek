@@ -88,6 +88,8 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "https://revitek-frontend-hl3e6t031-lucas-projects-29ce2f72.vercel.app",  # Vercel deployment
+    "https://revitek-frontend-137243mc2-lucas-projects-29ce2f72.vercel.app",  # Previous deployment
 ]
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
