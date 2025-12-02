@@ -1,3 +1,0 @@
-# Formato: hostname:port:database:username:password
-# Ejemplo: localhost:5432:revitek_db:TU_USUARIO:TU_CONTRASEÑA
-localhost:5432:revitek_db:TU_NOMBRE_USUARIO:TU_CONTRASEÑA
