@@ -177,9 +177,9 @@ class MetaClient:
         
         service_names = ", ".join([s.service.name for s in reservation.services.all()])
         
-        # Confirmation link - for now using localhost, update in production
+        # Confirmation link
         # Production should be: https://tudominio.com/confirmar/{token}
-        confirmation_url = f"http://localhost:5173/confirmar/{token}"
+        confirmation_url = f"{settings.FRONTEND_URL}/confirmar/{token}"
         
         # Send text message with link
         message = (

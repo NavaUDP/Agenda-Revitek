@@ -1,0 +1,979 @@
+[
+{
+  "model": "catalog.category",
+  "pk": 1,
+  "fields": {
+    "name": "REVISIÓN TÉCNICA"
+  }
+},
+{
+  "model": "catalog.category",
+  "pk": 2,
+  "fields": {
+    "name": "GRABADO PATENTE"
+  }
+},
+{
+  "model": "catalog.category",
+  "pk": 3,
+  "fields": {
+    "name": "LAVADOS"
+  }
+},
+{
+  "model": "catalog.category",
+  "pk": 4,
+  "fields": {
+    "name": "SERVICIOS DE TRASLADO"
+  }
+},
+{
+  "model": "catalog.category",
+  "pk": 5,
+  "fields": {
+    "name": "OTROS"
+  }
+},
+{
+  "model": "catalog.service",
+  "pk": 1,
+  "fields": {
+    "name": "AUTOMOVIL REVISIÓN TÉCNICA",
+    "category": 1,
+    "duration_min": 120,
+    "active": true,
+    "price": "55000"
+  }
+},
+{
+  "model": "catalog.service",
+  "pk": 2,
+  "fields": {
+    "name": "MOTO REVISION TECNICA",
+    "category": 1,
+    "duration_min": 120,
+    "active": true,
+    "price": "50000"
+  }
+},
+{
+  "model": "catalog.service",
+  "pk": 3,
+  "fields": {
+    "name": "Grabado patentes (10 vidrios)",
+    "category": 2,
+    "duration_min": 90,
+    "active": true,
+    "price": "30000"
+  }
+},
+{
+  "model": "catalog.service",
+  "pk": 4,
+  "fields": {
+    "name": "BORRADO GRABADO PATENTES",
+    "category": 2,
+    "duration_min": 480,
+    "active": true,
+    "price": "300000"
+  }
+},
+{
+  "model": "catalog.service",
+  "pk": 5,
+  "fields": {
+    "name": "LAVADO y ASPIRADO",
+    "category": 3,
+    "duration_min": 180,
+    "active": true,
+    "price": "45000"
+  }
+},
+{
+  "model": "catalog.service",
+  "pk": 6,
+  "fields": {
+    "name": "PULIDO DE FOCO C/U",
+    "category": 3,
+    "duration_min": 120,
+    "active": true,
+    "price": "50000"
+  }
+},
+{
+  "model": "catalog.service",
+  "pk": 7,
+  "fields": {
+    "name": "LAVADO TAPIZ",
+    "category": 3,
+    "duration_min": 480,
+    "active": true,
+    "price": "100000"
+  }
+},
+{
+  "model": "catalog.service",
+  "pk": 8,
+  "fields": {
+    "name": "TRASLADO VEHICULO",
+    "category": 4,
+    "duration_min": 90,
+    "active": true,
+    "price": "40000"
+  }
+},
+{
+  "model": "catalog.service",
+  "pk": 9,
+  "fields": {
+    "name": "COMPRA VENTA",
+    "category": 5,
+    "duration_min": 120,
+    "active": true,
+    "price": "0"
+  }
+},
+{
+  "model": "catalog.service",
+  "pk": 10,
+  "fields": {
+    "name": "DETAILING",
+    "category": 5,
+    "duration_min": 480,
+    "active": true,
+    "price": "0"
+  }
+},
+{
+  "model": "catalog.service",
+  "pk": 11,
+  "fields": {
+    "name": "MANTENCIONES POR KM",
+    "category": 5,
+    "duration_min": 480,
+    "active": true,
+    "price": "0"
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 1,
+  "fields": {
+    "service": 1,
+    "weekday": 0,
+    "allowed_times": [
+      "09:00",
+      "11:00",
+      "13:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 2,
+  "fields": {
+    "service": 1,
+    "weekday": 1,
+    "allowed_times": [
+      "09:00",
+      "11:00",
+      "13:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 3,
+  "fields": {
+    "service": 1,
+    "weekday": 2,
+    "allowed_times": [
+      "09:00",
+      "11:00",
+      "13:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 4,
+  "fields": {
+    "service": 1,
+    "weekday": 3,
+    "allowed_times": [
+      "09:00",
+      "11:00",
+      "13:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 5,
+  "fields": {
+    "service": 1,
+    "weekday": 4,
+    "allowed_times": [
+      "09:00",
+      "11:00",
+      "13:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 6,
+  "fields": {
+    "service": 1,
+    "weekday": 5,
+    "allowed_times": [
+      "09:00",
+      "11:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 7,
+  "fields": {
+    "service": 2,
+    "weekday": 0,
+    "allowed_times": [
+      "09:00",
+      "11:00",
+      "13:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 8,
+  "fields": {
+    "service": 2,
+    "weekday": 1,
+    "allowed_times": [
+      "09:00",
+      "11:00",
+      "13:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 9,
+  "fields": {
+    "service": 2,
+    "weekday": 2,
+    "allowed_times": [
+      "09:00",
+      "11:00",
+      "13:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 10,
+  "fields": {
+    "service": 2,
+    "weekday": 3,
+    "allowed_times": [
+      "09:00",
+      "11:00",
+      "13:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 11,
+  "fields": {
+    "service": 2,
+    "weekday": 4,
+    "allowed_times": [
+      "09:00",
+      "11:00",
+      "13:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 12,
+  "fields": {
+    "service": 2,
+    "weekday": 5,
+    "allowed_times": [
+      "09:00",
+      "11:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 13,
+  "fields": {
+    "service": 3,
+    "weekday": 0,
+    "allowed_times": [
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 14,
+  "fields": {
+    "service": 3,
+    "weekday": 1,
+    "allowed_times": [
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 15,
+  "fields": {
+    "service": 3,
+    "weekday": 2,
+    "allowed_times": [
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 16,
+  "fields": {
+    "service": 3,
+    "weekday": 3,
+    "allowed_times": [
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 17,
+  "fields": {
+    "service": 3,
+    "weekday": 4,
+    "allowed_times": [
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 18,
+  "fields": {
+    "service": 3,
+    "weekday": 5,
+    "allowed_times": [
+      "11:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 19,
+  "fields": {
+    "service": 4,
+    "weekday": 0,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 20,
+  "fields": {
+    "service": 4,
+    "weekday": 1,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 21,
+  "fields": {
+    "service": 4,
+    "weekday": 2,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 22,
+  "fields": {
+    "service": 4,
+    "weekday": 3,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 23,
+  "fields": {
+    "service": 4,
+    "weekday": 4,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 24,
+  "fields": {
+    "service": 5,
+    "weekday": 0,
+    "allowed_times": [
+      "09:00",
+      "12:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 25,
+  "fields": {
+    "service": 5,
+    "weekday": 1,
+    "allowed_times": [
+      "09:00",
+      "12:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 26,
+  "fields": {
+    "service": 5,
+    "weekday": 2,
+    "allowed_times": [
+      "09:00",
+      "12:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 27,
+  "fields": {
+    "service": 5,
+    "weekday": 3,
+    "allowed_times": [
+      "09:00",
+      "12:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 28,
+  "fields": {
+    "service": 5,
+    "weekday": 4,
+    "allowed_times": [
+      "09:00",
+      "12:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 29,
+  "fields": {
+    "service": 5,
+    "weekday": 5,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 30,
+  "fields": {
+    "service": 6,
+    "weekday": 0,
+    "allowed_times": [
+      "09:00",
+      "12:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 31,
+  "fields": {
+    "service": 6,
+    "weekday": 1,
+    "allowed_times": [
+      "09:00",
+      "12:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 32,
+  "fields": {
+    "service": 6,
+    "weekday": 2,
+    "allowed_times": [
+      "09:00",
+      "12:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 33,
+  "fields": {
+    "service": 6,
+    "weekday": 3,
+    "allowed_times": [
+      "09:00",
+      "12:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 34,
+  "fields": {
+    "service": 6,
+    "weekday": 4,
+    "allowed_times": [
+      "09:00",
+      "12:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 35,
+  "fields": {
+    "service": 6,
+    "weekday": 5,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 36,
+  "fields": {
+    "service": 7,
+    "weekday": 0,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 37,
+  "fields": {
+    "service": 7,
+    "weekday": 1,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 38,
+  "fields": {
+    "service": 7,
+    "weekday": 2,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 39,
+  "fields": {
+    "service": 7,
+    "weekday": 3,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 40,
+  "fields": {
+    "service": 7,
+    "weekday": 4,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 41,
+  "fields": {
+    "service": 8,
+    "weekday": 0,
+    "allowed_times": [
+      "09:00",
+      "10:30",
+      "12:00",
+      "13:30",
+      "15:00",
+      "16:30"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 42,
+  "fields": {
+    "service": 8,
+    "weekday": 1,
+    "allowed_times": [
+      "09:00",
+      "10:30",
+      "12:00",
+      "13:30",
+      "15:00",
+      "16:30"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 43,
+  "fields": {
+    "service": 8,
+    "weekday": 2,
+    "allowed_times": [
+      "09:00",
+      "10:30",
+      "12:00",
+      "13:30",
+      "15:00",
+      "16:30"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 44,
+  "fields": {
+    "service": 8,
+    "weekday": 3,
+    "allowed_times": [
+      "09:00",
+      "10:30",
+      "12:00",
+      "13:30",
+      "15:00",
+      "16:30"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 45,
+  "fields": {
+    "service": 8,
+    "weekday": 4,
+    "allowed_times": [
+      "09:00",
+      "10:30",
+      "12:00",
+      "13:30",
+      "15:00",
+      "16:30"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 46,
+  "fields": {
+    "service": 8,
+    "weekday": 5,
+    "allowed_times": [
+      "09:00",
+      "10:30",
+      "12:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 47,
+  "fields": {
+    "service": 9,
+    "weekday": 0,
+    "allowed_times": [
+      "09:00",
+      "11:00",
+      "13:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 48,
+  "fields": {
+    "service": 9,
+    "weekday": 1,
+    "allowed_times": [
+      "09:00",
+      "11:00",
+      "13:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 49,
+  "fields": {
+    "service": 9,
+    "weekday": 2,
+    "allowed_times": [
+      "09:00",
+      "11:00",
+      "13:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 50,
+  "fields": {
+    "service": 9,
+    "weekday": 3,
+    "allowed_times": [
+      "09:00",
+      "11:00",
+      "13:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 51,
+  "fields": {
+    "service": 9,
+    "weekday": 4,
+    "allowed_times": [
+      "09:00",
+      "11:00",
+      "13:00",
+      "15:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 52,
+  "fields": {
+    "service": 9,
+    "weekday": 5,
+    "allowed_times": [
+      "09:00",
+      "11:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 53,
+  "fields": {
+    "service": 10,
+    "weekday": 0,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 54,
+  "fields": {
+    "service": 10,
+    "weekday": 1,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 55,
+  "fields": {
+    "service": 10,
+    "weekday": 2,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 56,
+  "fields": {
+    "service": 10,
+    "weekday": 3,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 57,
+  "fields": {
+    "service": 10,
+    "weekday": 4,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 58,
+  "fields": {
+    "service": 11,
+    "weekday": 0,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 59,
+  "fields": {
+    "service": 11,
+    "weekday": 1,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 60,
+  "fields": {
+    "service": 11,
+    "weekday": 2,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 61,
+  "fields": {
+    "service": 11,
+    "weekday": 3,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 62,
+  "fields": {
+    "service": 11,
+    "weekday": 4,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 63,
+  "fields": {
+    "service": 4,
+    "weekday": 5,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 64,
+  "fields": {
+    "service": 10,
+    "weekday": 5,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 65,
+  "fields": {
+    "service": 7,
+    "weekday": 5,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+},
+{
+  "model": "catalog.servicetimerule",
+  "pk": 66,
+  "fields": {
+    "service": 11,
+    "weekday": 5,
+    "allowed_times": [
+      "09:00"
+    ]
+  }
+}
+]

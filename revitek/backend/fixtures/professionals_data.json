@@ -1,0 +1,194 @@
+[
+{
+  "model": "agenda.professional",
+  "pk": 1,
+  "fields": {
+    "first_name": "Felipe",
+    "last_name": "Cuevas",
+    "email": "fcuevas@revitek.com",
+    "phone": "+56 9 0000 0000",
+    "active": true,
+    "accepts_reservations": true,
+    "calendar_color": "#37e16a",
+    "bio": "Felipe es parte del equipo Revitek, donde combina su pasión por los autos con su compromiso por ofrecer un servicio confiable y profesional. Con solo 21 años, se destaca por su energía, responsabilidad y dedicación en cada traslado y gestión técnica que realiza.\n\nActualmente es estudiante para ser piloto comercial, una carrera que refleja su disciplina, enfoque y precisión, cualidades que también aplica en su trabajo diario en Revitek.\n\nSu entusiasmo por el mundo automotriz y su afán por aprender lo han convertido en un miembro clave del equipo, siempre dispuesto a mejorar los procesos y entregar una experiencia de calidad a cada cliente.",
+    "photo": "",
+    "created_at": "2025-11-27T16:42:17.788Z"
+  }
+},
+{
+  "model": "agenda.professionalservice",
+  "pk": 1,
+  "fields": {
+    "professional": 1,
+    "service": 1,
+    "duration_override_min": null,
+    "active": true
+  }
+},
+{
+  "model": "agenda.professionalservice",
+  "pk": 2,
+  "fields": {
+    "professional": 1,
+    "service": 10,
+    "duration_override_min": null,
+    "active": true
+  }
+},
+{
+  "model": "agenda.professionalservice",
+  "pk": 3,
+  "fields": {
+    "professional": 1,
+    "service": 5,
+    "duration_override_min": null,
+    "active": true
+  }
+},
+{
+  "model": "agenda.professionalservice",
+  "pk": 4,
+  "fields": {
+    "professional": 1,
+    "service": 6,
+    "duration_override_min": null,
+    "active": true
+  }
+},
+{
+  "model": "agenda.professionalservice",
+  "pk": 5,
+  "fields": {
+    "professional": 1,
+    "service": 4,
+    "duration_override_min": null,
+    "active": true
+  }
+},
+{
+  "model": "agenda.professionalservice",
+  "pk": 6,
+  "fields": {
+    "professional": 1,
+    "service": 3,
+    "duration_override_min": null,
+    "active": true
+  }
+},
+{
+  "model": "agenda.professionalservice",
+  "pk": 7,
+  "fields": {
+    "professional": 1,
+    "service": 11,
+    "duration_override_min": null,
+    "active": true
+  }
+},
+{
+  "model": "agenda.professionalservice",
+  "pk": 8,
+  "fields": {
+    "professional": 1,
+    "service": 8,
+    "duration_override_min": null,
+    "active": true
+  }
+},
+{
+  "model": "agenda.professionalservice",
+  "pk": 9,
+  "fields": {
+    "professional": 1,
+    "service": 9,
+    "duration_override_min": null,
+    "active": true
+  }
+},
+{
+  "model": "agenda.professionalservice",
+  "pk": 10,
+  "fields": {
+    "professional": 1,
+    "service": 7,
+    "duration_override_min": null,
+    "active": true
+  }
+},
+{
+  "model": "agenda.professionalservice",
+  "pk": 11,
+  "fields": {
+    "professional": 1,
+    "service": 2,
+    "duration_override_min": null,
+    "active": true
+  }
+},
+{
+  "model": "agenda.workschedule",
+  "pk": 1,
+  "fields": {
+    "professional": 1,
+    "weekday": 0,
+    "start_time": "09:00:00",
+    "end_time": "18:00:00",
+    "active": true
+  }
+},
+{
+  "model": "agenda.workschedule",
+  "pk": 2,
+  "fields": {
+    "professional": 1,
+    "weekday": 1,
+    "start_time": "09:00:00",
+    "end_time": "18:00:00",
+    "active": true
+  }
+},
+{
+  "model": "agenda.workschedule",
+  "pk": 3,
+  "fields": {
+    "professional": 1,
+    "weekday": 2,
+    "start_time": "09:00:00",
+    "end_time": "18:00:00",
+    "active": true
+  }
+},
+{
+  "model": "agenda.workschedule",
+  "pk": 4,
+  "fields": {
+    "professional": 1,
+    "weekday": 3,
+    "start_time": "09:00:00",
+    "end_time": "18:00:00",
+    "active": true
+  }
+},
+{
+  "model": "agenda.workschedule",
+  "pk": 5,
+  "fields": {
+    "professional": 1,
+    "weekday": 4,
+    "start_time": "09:00:00",
+    "end_time": "18:00:00",
+    "active": true
+  }
+},
+{
+  "model": "agenda.workschedule",
+  "pk": 6,
+  "fields": {
+    "professional": 1,
+    "weekday": 5,
+    "start_time": "09:00:00",
+    "end_time": "14:00:00",
+    "active": true
+  }
+}
+]

@@ -47,10 +47,10 @@ def trigger_whatsapp_notifications(sender, instance, created, **kwargs):
     # Better approach: Send link when explicitly requested via a custom field or action
     # For now, let's trigger on CONFIRMED status change
     if old_status == 'PENDING' and instance.status == 'CONFIRMED':
-        print(f"✅ Admin aprobó - generando token y manteniendo status...")
+        print(f"✅ Admin aprobó - generando token y esperando confirmación del cliente...")
         
-        # Revert status to PENDING temporarily
-        instance.status = 'PENDING'
+        # Change status to WAITING_CLIENT
+        instance.status = 'WAITING_CLIENT'
         
         def send_confirmation_link():
             try:
@@ -60,7 +60,7 @@ def trigger_whatsapp_notifications(sender, instance, created, **kwargs):
                 
                 print(f"🔑 Token generado: {token}")
                 
-                # Save token to reservation and keep as PENDING
+                # Save token to reservation and update status
                 instance.confirmation_token = token
                 instance.token_expires_at = expiration
                 instance.save(update_fields=['confirmation_token', 'token_expires_at', 'status'])

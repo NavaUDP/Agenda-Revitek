@@ -1,0 +1,38 @@
+[
+{
+  "model": "clients.user",
+  "pk": 1,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$BcloaiJk1dPYvxnleL1onw$JXm9FInSlpem5IaLB5K+rY1Z54TXXhWWWiPTtQABx6A=",
+    "last_login": null,
+    "is_superuser": true,
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2025-11-27T16:30:35.925Z",
+    "email": "revitek@gmail.com",
+    "first_name": "Benjamin",
+    "last_name": "",
+    "phone": "99999999",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "clients.user",
+  "pk": 2,
+  "fields": {
+    "password": "",
+    "last_login": null,
+    "is_superuser": false,
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-11-27T18:26:58.904Z",
+    "email": "lucas@gmail.com",
+    "first_name": "Lucas",
+    "last_name": "Araya",
+    "phone": "+56 9 8614 2813",
+    "groups": [],
+    "user_permissions": []
+  }
+}
+]

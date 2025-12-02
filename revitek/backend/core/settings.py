@@ -28,28 +28,13 @@ PROJECT_ROOT = BASE_DIR.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-u5r^24mj-pe7ro^&)5qfwc(4vn)fzja7^3_f()6li&6zck^v3a'
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-u5r^24mj-pe7ro^&)5qfwc(4vn)fzja7^3_f()6li&6zck^v3a')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "zeroth-proctodaeal-hattie.ngrok-free.dev",
-    ".ngrok-free.dev",
-    "revitek-backend-production.up.railway.app",  # Railway production
-]
-
-# Add Railway domains if in production
-RAILWAY_STATIC_URL = os.environ.get('RAILWAY_STATIC_URL')
-if RAILWAY_STATIC_URL:
-    ALLOWED_HOSTS.append(RAILWAY_STATIC_URL)
-
-# Allow custom domain if provided
-CUSTOM_DOMAIN = os.environ.get('CUSTOM_DOMAIN')
-if CUSTOM_DOMAIN:
-    ALLOWED_HOSTS.append(CUSTOM_DOMAIN)
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 AUTH_USER_MODEL = "clients.User"
 
@@ -74,11 +59,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add this line
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-
-    'corsheaders.middleware.CorsMiddleware',  # ← aquí arriba
-
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -87,11 +70,7 @@ MIDDLEWARE = [
 ]
 
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "https://revitek-frontend-hl3e6t031-lucas-projects-29ce2f72.vercel.app",  # Vercel deployment
-    "https://revitek-frontend-137243mc2-lucas-projects-29ce2f72.vercel.app",  # Previous deployment
-]
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173').split(',')
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "authorization",
@@ -125,27 +104,15 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-import dj_database_url
-
-# Check if DATABASE_URL is set (for Railway/production)
-DATABASE_URL = os.environ.get('DATABASE_URL')
-
-if DATABASE_URL:
-    # Production: Use Railway database
-    DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
-    }
-else:
-    # Development: Use local PostgreSQL with service file
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'OPTIONS': {
-                'service': 'revitek_service',
-                'passfile': PROJECT_ROOT / '.my_pgpass'
-            }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'OPTIONS': {
+            'service': 'revitek_service',
+            'passfile': PROJECT_ROOT / '.my_pgpass'
         }
     }
+}
 
 
 # Password validation
@@ -184,6 +151,10 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Frontend URL for links (e.g. WhatsApp)
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

@@ -535,7 +535,6 @@ def delete_block(request, pk):
 
 
 @api_view(["POST"])
-@permission_classes([AllowAny])
 def aggregated_availability(request):
     """
     Calculates aggregated availability for multiple services on a specific date.
@@ -582,16 +581,23 @@ def confirm_reservation_via_link(request, token):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    # Check if already confirmed
-    if reservation.status == "CONFIRMED":
+    # Check if already confirmed/reconfirmed
+    if reservation.status in ["CONFIRMED", "RECONFIRMED"]:
         return Response(
             {"detail": "Esta reserva ya fue confirmada anteriormente."},
             status=status.HTTP_200_OK
         )
+        
+    # Check if cancelled (e.g. expired)
+    if reservation.status == "CANCELLED":
+        return Response(
+            {"detail": "Esta reserva ha sido cancelada o expiró. Por favor contacta al administrador."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
     
-    # Update status to CONFIRMED
+    # Update status to RECONFIRMED
     old_status = reservation.status
-    reservation.status = "CONFIRMED"
+    reservation.status = "RECONFIRMED"
     
     # Flag to prevent signal loop
     reservation._confirmed_via_link = True
@@ -601,8 +607,8 @@ def confirm_reservation_via_link(request, token):
     # Log history
     StatusHistory.objects.create(
         reservation=reservation,
-        status="CONFIRMED",
-        note=f"Confirmed via WhatsApp link (previous status: {old_status})"
+        status="RECONFIRMED",
+        note=f"Re-confirmed by client via WhatsApp link (previous status: {old_status})"
     )
     
     return Response({

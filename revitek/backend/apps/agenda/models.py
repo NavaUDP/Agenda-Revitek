@@ -222,6 +222,7 @@ class Reservation(models.Model):
         ("CANCELLED", "Cancelled"),
         ("NO_SHOW", "No Show"),
         ("PENDING", "Pending"),
+        ("WAITING_CLIENT", "Waiting for Client Confirmation"),
         ("RECONFIRMED", "Re-Confirmed by Client"),
     ]
 
