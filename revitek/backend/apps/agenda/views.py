@@ -535,6 +535,7 @@ def delete_block(request, pk):
 
 
 @api_view(["POST"])
+@permission_classes([AllowAny])
 def aggregated_availability(request):
     """
     Calculates aggregated availability for multiple services on a specific date.
