@@ -14,6 +14,14 @@ class Professional(models.Model):
     email = models.EmailField(blank=True, null=True)
     phone = models.CharField(max_length=32, blank=True, null=True)
 
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="professional_profile",
+    )
+
     active = models.BooleanField(default=True)
     accepts_reservations = models.BooleanField(default=True)
 
@@ -28,6 +36,24 @@ class Professional(models.Model):
 
     class Meta:
         ordering = ["first_name", "last_name"]
+
+    def save(self, *args, **kwargs):
+        # Normalize phone number
+        if self.phone:
+            import re
+            # Remove all non-digit characters
+            clean_phone = re.sub(r'\D', '', str(self.phone))
+            
+            # If it's a Chilean number (9 digits), ensure it starts with 56
+            if len(clean_phone) == 9 and clean_phone.startswith('9'):
+                clean_phone = '56' + clean_phone
+            elif len(clean_phone) == 8 and not clean_phone.startswith('56'):
+                 # Handle cases where user might enter 91234567 (8 digits) - though less common
+                 clean_phone = '569' + clean_phone
+            
+            self.phone = clean_phone
+            
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}".strip()
@@ -215,15 +241,15 @@ class Reservation(models.Model):
     eso se gestiona en serializers y en clients.*
     """
     STATUS_CHOICES = [
-        ("RESERVED", "Reserved"),
-        ("CONFIRMED", "Confirmed"),
-        ("IN_PROGRESS", "In Progress"),
-        ("COMPLETED", "Completed"),
-        ("CANCELLED", "Cancelled"),
-        ("NO_SHOW", "No Show"),
-        ("PENDING", "Pending"),
-        ("WAITING_CLIENT", "Waiting for Client Confirmation"),
-        ("RECONFIRMED", "Re-Confirmed by Client"),
+        ("RESERVED", "Reservada (Sistema)"),
+        ("CONFIRMED", "Confirmada"),
+        ("IN_PROGRESS", "En Progreso"),
+        ("COMPLETED", "Completada"),
+        ("CANCELLED", "Cancelada"),
+        ("NO_SHOW", "No Show (No asistió)"),
+        ("PENDING", "Pendiente (Esperando Aprobación)"),
+        ("WAITING_CLIENT", "Esperando Confirmación Cliente"),
+        ("RECONFIRMED", "Confirmada (Por Cliente)"),
     ]
 
     client = models.ForeignKey(

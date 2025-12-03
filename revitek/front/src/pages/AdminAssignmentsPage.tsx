@@ -1,132 +1,167 @@
-// src/pages/AdminAssignmentsPage.tsx
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { listProfesionales, type Professional } from "@/api/profesionales";
+import { listProfessionals } from "@/api/profesionales";
+import { Professional } from "@/types/professionals";
+import { Service, ProfessionalServiceAssignment } from "@/types/services";
 import {
-  listAllServicios,
-  listAsignaciones,
-  asignarServicio,
-  quitarServicio,
-} from "@/api/servicios";
+  listAllServices,
+  listProfessionalServices,
+  assignService,
+  removeServiceAssignment,
+} from '@/api/servicios';
 import { useToast } from "@/components/ui/use-toast";
-
-interface Servicio {
-  id: number;
-  name: string;
-  duration_min: number;
-}
-
-interface Asignacion {
-  id: number;
-  professional: number;
-  service: number;
-  active: boolean;
-}
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 
 export default function AdminAssignmentsPage() {
   const { toast } = useToast();
 
-  const [profesionales, setProfesionales] = useState<Professional[]>([]);
-  const [servicios, setServicios] = useState<Servicio[]>([]);
-  const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [assignments, setAssignments] = useState<ProfessionalServiceAssignment[]>([]);
 
-  const [selectedProfesionalId, setSelectedProfesionalId] = useState<number>();
+  const [selectedProfessionalId, setSelectedProfessionalId] = useState<string>("");
 
   const [loadingProf, setLoadingProf] = useState(true);
   const [loadingServ, setLoadingServ] = useState(true);
-  const [loadingAsign, setLoadingAsign] = useState(false);
+  const [loadingAssign, setLoadingAssign] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  const [isSwitching, setIsSwitching] = useState(false);
 
   // Load professionals + services
   useEffect(() => {
-    const load = async () => {
+    const loadData = async () => {
       try {
-        const profs = await listProfesionales();
-        setProfesionales(profs);
+        const [profs, servs] = await Promise.all([
+          listProfessionals(),
+          listAllServices()
+        ]);
+        setProfessionals(profs);
+        setServices(servs);
+      } catch (error) {
+        console.error("Error loading initial data:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "No se pudieron cargar los datos iniciales.",
+        });
       } finally {
         setLoadingProf(false);
-      }
-
-      try {
-        const servs = await listAllServicios();
-        setServicios(servs);
-      } finally {
         setLoadingServ(false);
       }
     };
-    load();
-  }, []);
+    loadData();
+  }, [toast]);
 
   // Load assignments when switching professional
   useEffect(() => {
-    if (!selectedProfesionalId) {
-      setAsignaciones([]);
+    if (!selectedProfessionalId) {
+      setAssignments([]);
       return;
     }
 
     let isCancelled = false;
 
-    const loadAsign = async () => {
-      setIsSwitching(true);
-      setLoadingAsign(true);
-      setAsignaciones([]);
-
+    const loadAssignments = async () => {
+      setLoadingAssign(true);
       try {
-        const data = await listAsignaciones({
-          professional_id: selectedProfesionalId,
+        const data = await listProfessionalServices({
+          professional_id: Number(selectedProfessionalId),
         });
 
-        if (!isCancelled) setAsignaciones(data);
-      } finally {
+        if (!isCancelled) setAssignments(data);
+      } catch (error) {
         if (!isCancelled) {
-          setLoadingAsign(false);
-          setIsSwitching(false);
+          console.error("Error loading assignments:", error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "No se pudieron cargar las asignaciones.",
+          });
         }
+      } finally {
+        if (!isCancelled) setLoadingAssign(false);
       }
     };
 
-    loadAsign();
+    loadAssignments();
+
     return () => {
       isCancelled = true;
     };
-  }, [selectedProfesionalId]);
+  }, [selectedProfessionalId, toast]);
 
-  const assignedIds = new Set(asignaciones.map((a) => a.service));
+  const assignedServiceIds = new Set(assignments.map((a) => a.service));
 
   const toggleService = async (serviceId: number, checked: boolean) => {
-    if (!selectedProfesionalId) return;
+    if (!selectedProfessionalId) return;
 
-    const currentProfId = selectedProfesionalId;
+    const profId = Number(selectedProfessionalId);
+
+    // Optimistic Update
+    const previousAssignments = [...assignments];
+
+    if (checked) {
+      // Add mock assignment
+      const newAssignment: ProfessionalServiceAssignment = {
+        id: -1, // Temporary ID
+        professional: profId,
+        service: serviceId,
+        active: true
+      };
+      setAssignments(prev => [...prev, newAssignment]);
+    } else {
+      // Remove assignment
+      setAssignments(prev => prev.filter(a => a.service !== serviceId));
+    }
+
     setSaving(true);
 
     try {
       if (checked) {
-        await asignarServicio({
-          professional: currentProfId,
+        await assignService({
+          professional: profId,
           service: serviceId,
         });
       } else {
-        const asign = asignaciones.find((a) => a.service === serviceId);
-        if (asign) {
-          await quitarServicio(asign.id);
+        const assignment = previousAssignments.find((a) => a.service === serviceId);
+        if (assignment && assignment.id !== -1) {
+          await removeServiceAssignment(assignment.id);
         }
       }
 
-      if (selectedProfesionalId === currentProfId) {
-        const updated = await listAsignaciones({
-          professional_id: currentProfId,
-        });
+      // Refresh to get real IDs and ensure consistency
+      const updated = await listProfessionalServices({
+        professional_id: profId,
+      });
 
-        if (selectedProfesionalId === currentProfId) {
-          setAsignaciones(updated);
-        }
+      // Only update if we are still on the same professional
+      if (Number(selectedProfessionalId) === profId) {
+        setAssignments(updated);
       }
 
       toast({
-        title: "Éxito",
-        description: checked ? "Servicio asignado" : "Servicio removido",
+        title: checked ? "Servicio asignado" : "Servicio removido",
+        description: checked
+          ? "El servicio ha sido asignado correctamente."
+          : "El servicio ha sido removido correctamente.",
+      });
+
+    } catch (error) {
+      console.error("Error toggling service:", error);
+      // Revert on error
+      setAssignments(previousAssignments);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo actualizar la asignación. Intente nuevamente.",
       });
     } finally {
       setSaving(false);
@@ -144,76 +179,91 @@ export default function AdminAssignmentsPage() {
         </CardHeader>
         <CardContent>
           {loadingProf ? (
-            <p className="text-muted-foreground">Cargando profesionales...</p>
+            <div className="flex items-center space-x-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Cargando profesionales...</span>
+            </div>
           ) : (
-            <select
-              className="
-                w-full md:w-1/2 p-2 rounded-md border border-border
-                bg-background text-foreground
-              "
-              value={selectedProfesionalId ?? ""}
-              onChange={(e) => setSelectedProfesionalId(Number(e.target.value))}
-              disabled={saving}
-            >
-              <option value="">Seleccione...</option>
-              {profesionales.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.first_name} {p.last_name}
-                </option>
-              ))}
-            </select>
+            <div className="w-full md:w-1/2">
+              <Select
+                value={selectedProfessionalId}
+                onValueChange={setSelectedProfessionalId}
+                disabled={saving}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione un profesional" />
+                </SelectTrigger>
+                <SelectContent>
+                  {professionals.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.first_name} {p.last_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
         </CardContent>
       </Card>
 
       {/* LISTA DE SERVICIOS */}
-      {selectedProfesionalId && (
+      {selectedProfessionalId && (
         <Card className="border border-border bg-card">
           <CardHeader>
-            <CardTitle className="text-foreground">
-              Servicios del profesional
+            <CardTitle className="text-foreground flex items-center justify-between">
+              <span>Servicios del profesional</span>
+              {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
             </CardTitle>
           </CardHeader>
 
           <CardContent>
-            {isSwitching || loadingAsign || loadingServ ? (
-              <p className="text-muted-foreground">Cargando servicios...</p>
+            {loadingAssign || loadingServ ? (
+              <div className="flex items-center justify-center p-8 text-muted-foreground">
+                <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                <span>Cargando servicios y asignaciones...</span>
+              </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {servicios.map((s) => {
-                  const checked = assignedIds.has(s.id);
-
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {services.map((s) => {
+                  const isAssigned = assignedServiceIds.has(s.id);
                   return (
-                    <label
+                    <div
                       key={s.id}
-                      className="
-                        flex items-center space-x-3 p-3 rounded-md border border-border
-                        bg-muted/30 hover:bg-muted transition-colors cursor-pointer
-                      "
+                      className={`
+                        flex items-center space-x-3 p-4 rounded-lg border transition-all
+                        ${isAssigned
+                          ? "bg-primary/10 border-primary/50"
+                          : "bg-card border-border hover:border-primary/30"
+                        }
+                      `}
                     >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(e) => toggleService(s.id, e.target.checked)}
+                      <Checkbox
+                        id={`service-${s.id}`}
+                        checked={isAssigned}
+                        onCheckedChange={(checked) => toggleService(s.id, checked as boolean)}
                         disabled={saving}
-                        className="cursor-pointer accent-primary"
                       />
-
-                      <span
-                        className={`text-sm ${
-                          saving ? "opacity-50" : "text-foreground"
-                        }`}
-                      >
-                        {s.name} ({s.duration_min} min)
-                      </span>
-                    </label>
+                      <div className="grid gap-1.5 leading-none">
+                        <Label
+                          htmlFor={`service-${s.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          {s.name}
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          {s.duration_min} min
+                        </p>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
             )}
 
-            {saving && (
-              <p className="text-sm text-blue-500 mt-2">Guardando cambios...</p>
+            {services.length === 0 && !loadingServ && (
+              <p className="text-center text-muted-foreground py-8">
+                No hay servicios disponibles en el sistema.
+              </p>
             )}
           </CardContent>
         </Card>

@@ -1,78 +1,67 @@
-// revitek/front/src/api/servicios.ts
+// src/api/servicios.ts
 import http from "./http";
+import {
+  Service,
+  ServicePayload,
+  Category,
+  ProfessionalServiceAssignment,
+  AssignmentPayload
+} from "@/types/services";
 
 /* ============================================================
-   TIPOS
+   CRUD Services
 ============================================================ */
 
-export interface ServicioPayload {
-  name: string;
-  category?: string;
-  duration_min: number;
-  active?: boolean;
-  price: number;
-}
-
-/* ============================================================
-   CRUD Servicios
-============================================================ */
-
-export interface Category {
-  id: number;
-  name: string;
-}
-
-export async function listAllServicios(params?: { include_inactive?: boolean }) {
+export async function listAllServices(params?: { include_inactive?: boolean }): Promise<Service[]> {
   const { data } = await http.get("/catalog/services/", { params });
   return data;
 }
 
-export async function listCategories() {
+// Alias for backward compatibility or clarity if needed, but prefer listAllServices or listServices
+export const listServices = listAllServices;
+
+export async function listCategories(): Promise<Category[]> {
   const { data } = await http.get("/catalog/categories/");
   return data;
 }
 
-export async function createServicio(payload: ServicioPayload) {
+export async function createService(payload: ServicePayload): Promise<Service> {
   const { data } = await http.post("/catalog/services/", payload);
   return data;
 }
 
-export async function updateServicio(id: number, payload: Partial<ServicioPayload>, params?: { include_inactive?: boolean }) {
+export async function updateService(
+  id: number,
+  payload: Partial<ServicePayload>,
+  params?: { include_inactive?: boolean }
+): Promise<Service> {
   const { data } = await http.patch(`/catalog/services/${id}/`, payload, { params });
   return data;
 }
 
-export async function deleteServicio(id: number, params?: { include_inactive?: boolean }) {
+export async function deleteService(id: number, params?: { include_inactive?: boolean }): Promise<void> {
   await http.delete(`/catalog/services/${id}/`, { params });
 }
 
 /* ============================================================
-   ASIGNACIONES Profesional ↔ Servicio
+   ASSIGNMENTS Professional <-> Service
 ============================================================ */
 
-// Listar asignaciones para un profesional
-export async function listAsignaciones(params: {
+export async function listProfessionalServices(params: {
   professional_id?: number;
   service_id?: number;
-} = {}) {
+} = {}): Promise<ProfessionalServiceAssignment[]> {
   const { data } = await http.get("/agenda/professional-services/", {
     params,
   });
   return data;
 }
 
-// Crear asignación
-export async function asignarServicio(payload: {
-  professional: number;
-  service: number;
-  duration_override_min?: number | null;
-  active?: boolean;
-}) {
+export async function assignService(payload: AssignmentPayload): Promise<ProfessionalServiceAssignment> {
   const { data } = await http.post("/agenda/professional-services/", payload);
   return data;
 }
 
-// Eliminar asignación
-export async function quitarServicio(asignacionId: number) {
-  await http.delete(`/agenda/professional-services/${asignacionId}/`);
+export async function removeServiceAssignment(assignmentId: number): Promise<void> {
+  await http.delete(`/agenda/professional-services/${assignmentId}/`);
 }

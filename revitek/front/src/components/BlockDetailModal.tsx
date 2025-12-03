@@ -7,25 +7,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Calendar, Clock, User, AlertTriangle, Edit2, Trash2 } from "lucide-react";
-import { useState } from "react";
-import { deleteBlock, updateBlock } from "@/api/agenda";
+import { useState, useEffect } from "react";
+import { deleteBlock, updateBlock, SlotBlockData } from "@/api/agenda";
 import { toast } from "@/components/ui/use-toast";
-
-interface BlockDetail {
-  id: number;
-  profesional: number;
-  profesional_nombre?: string;
-  fecha: string;
-  inicio: string;
-  fin: string;
-  razon?: string;
-  created_at?: string;
-}
+import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
 
 interface BlockDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  block: BlockDetail | null;
+  block: SlotBlockData | null;
   onRefreshCalendar?: () => void;
 }
 
@@ -34,27 +25,37 @@ export const BlockDetailModal = ({ isOpen, onClose, block, onRefreshCalendar }: 
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [deleted, setDeleted] = useState(false);
-  
+
   // Estados para edición
-  const [editedRazon, setEditedRazon] = useState("");
-  const [editedFecha, setEditedFecha] = useState("");
-  const [editedHoraInicio, setEditedHoraInicio] = useState("");
-  const [editedHoraFin, setEditedHoraFin] = useState("");
+  const [editedReason, setEditedReason] = useState("");
+  const [editedDate, setEditedDate] = useState("");
+  const [editedStartTime, setEditedStartTime] = useState("");
+  const [editedEndTime, setEditedEndTime] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsEditing(false);
+      setShowConfirmDelete(false);
+      setDeleted(false);
+    }
+  }, [isOpen]);
 
   if (!block) return null;
 
   // Inicializar estados de edición
   const startEditing = () => {
-    setEditedRazon(block.razon || "");
-    setEditedFecha(block.fecha);
-    
-    const inicioDate = new Date(block.inicio);
-    const finDate = new Date(block.fin);
-    
-    setEditedHoraInicio(inicioDate.toTimeString().slice(0, 5)); // HH:MM
-    setEditedHoraFin(finDate.toTimeString().slice(0, 5)); // HH:MM
-    
+    setEditedReason(block.reason || "");
+    setEditedDate(block.date);
+
+    // Assuming block.start and block.end are ISO strings or contain time
+    // If they are full ISO strings: 2023-10-10T10:00:00
+    const startDate = new Date(block.start);
+    const endDate = new Date(block.end);
+
+    setEditedStartTime(startDate.toTimeString().slice(0, 5)); // HH:MM
+    setEditedEndTime(endDate.toTimeString().slice(0, 5)); // HH:MM
+
     setIsEditing(true);
   };
 
@@ -63,7 +64,7 @@ export const BlockDetailModal = ({ isOpen, onClose, block, onRefreshCalendar }: 
   };
 
   const handleSaveChanges = async () => {
-    if (!editedRazon.trim()) {
+    if (!editedReason.trim()) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -72,17 +73,19 @@ export const BlockDetailModal = ({ isOpen, onClose, block, onRefreshCalendar }: 
       return;
     }
 
+    if (!block.id) return;
+
     setIsSaving(true);
     try {
-      const inicioISO = `${editedFecha}T${editedHoraInicio}:00`;
-      const finISO = `${editedFecha}T${editedHoraFin}:00`;
+      const startISO = `${editedDate}T${editedStartTime}:00`;
+      const endISO = `${editedDate}T${editedEndTime}:00`;
 
       await updateBlock(block.id, {
-        profesional: block.profesional,
-        fecha: editedFecha,
-        inicio: inicioISO,
-        fin: finISO,
-        razon: editedRazon.trim()
+        professional: block.professional,
+        date: editedDate,
+        start: startISO,
+        end: endISO,
+        reason: editedReason.trim()
       });
 
       toast({
@@ -91,7 +94,7 @@ export const BlockDetailModal = ({ isOpen, onClose, block, onRefreshCalendar }: 
       });
 
       setIsEditing(false);
-      
+
       // Refrescar calendario después de un momento
       setTimeout(() => {
         onClose();
@@ -117,6 +120,8 @@ export const BlockDetailModal = ({ isOpen, onClose, block, onRefreshCalendar }: 
   };
 
   const handleConfirmDelete = async () => {
+    if (!block.id) return;
+
     setIsDeleting(true);
     try {
       await deleteBlock(block.id);
@@ -149,22 +154,18 @@ export const BlockDetailModal = ({ isOpen, onClose, block, onRefreshCalendar }: 
   };
 
   // Formatear fechas para mostrar
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('es-CL', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
+  const formatDateDisplay = (dateStr: string) => {
+    if (!dateStr) return "";
+    // dateStr is YYYY-MM-DD
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    return format(date, "EEEE d 'de' MMMM, yyyy", { locale: es });
   };
 
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString('es-CL', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
+  const formatTimeDisplay = (isoStr: string) => {
+    if (!isoStr) return "";
+    const date = new Date(isoStr);
+    return format(date, "HH:mm", { locale: es });
   };
 
   // Si fue eliminado exitosamente
@@ -195,15 +196,15 @@ export const BlockDetailModal = ({ isOpen, onClose, block, onRefreshCalendar }: 
               <span>Confirmar Eliminación</span>
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="py-4">
             <p className="text-muted-foreground">
               ¿Estás seguro que deseas eliminar este bloqueo de horario?
             </p>
             <div className="mt-4 p-3 bg-muted rounded-lg text-sm">
-              <p><strong>Fecha:</strong> {formatDate(block.fecha)}</p>
-              <p><strong>Horario:</strong> {formatTime(block.inicio)} - {formatTime(block.fin)}</p>
-              <p><strong>Razón:</strong> {block.razon || "Sin razón especificada"}</p>
+              <p><strong>Fecha:</strong> {formatDateDisplay(block.date)}</p>
+              <p><strong>Horario:</strong> {formatTimeDisplay(block.start)} - {formatTimeDisplay(block.end)}</p>
+              <p><strong>Razón:</strong> {block.reason || "Sin razón especificada"}</p>
             </div>
             <p className="mt-3 text-sm text-destructive">
               Esta acción no se puede deshacer. Los horarios volverán a estar disponibles.
@@ -244,7 +245,7 @@ export const BlockDetailModal = ({ isOpen, onClose, block, onRefreshCalendar }: 
                   <h3 className="text-lg font-semibold">Profesional</h3>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-4">
-                  <p className="text-foreground">{block.profesional_nombre || `Profesional #${block.profesional}`}</p>
+                  <p className="text-foreground">Profesional #{block.professional}</p>
                 </div>
               </div>
 
@@ -259,15 +260,15 @@ export const BlockDetailModal = ({ isOpen, onClose, block, onRefreshCalendar }: 
                 <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Fecha:</span>
-                    <span className="font-medium">{formatDate(block.fecha)}</span>
+                    <span className="font-medium">{formatDateDisplay(block.date)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Hora Inicio:</span>
-                    <span className="font-medium">{formatTime(block.inicio)}</span>
+                    <span className="font-medium">{formatTimeDisplay(block.start)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Hora Fin:</span>
-                    <span className="font-medium">{formatTime(block.fin)}</span>
+                    <span className="font-medium">{formatTimeDisplay(block.end)}</span>
                   </div>
                 </div>
               </div>
@@ -281,7 +282,7 @@ export const BlockDetailModal = ({ isOpen, onClose, block, onRefreshCalendar }: 
                   <h3 className="text-lg font-semibold">Razón del Bloqueo</h3>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-4">
-                  <p className="text-foreground whitespace-pre-wrap">{block.razon || "Sin razón especificada"}</p>
+                  <p className="text-foreground whitespace-pre-wrap">{block.reason || "Sin razón especificada"}</p>
                 </div>
               </div>
 
@@ -296,17 +297,17 @@ export const BlockDetailModal = ({ isOpen, onClose, block, onRefreshCalendar }: 
 
               {/* Botones de acción */}
               <div className="flex gap-3 pt-4">
-                <Button 
-                  variant="outline" 
-                  className="flex-1" 
+                <Button
+                  variant="outline"
+                  className="flex-1"
                   onClick={startEditing}
                 >
                   <Edit2 className="h-4 w-4 mr-2" />
                   Editar
                 </Button>
-                <Button 
-                  variant="destructive" 
-                  className="flex-1" 
+                <Button
+                  variant="destructive"
+                  className="flex-1"
                   onClick={handleDeleteClick}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
@@ -325,7 +326,7 @@ export const BlockDetailModal = ({ isOpen, onClose, block, onRefreshCalendar }: 
                 </div>
                 <div className="bg-muted/50 rounded-lg p-4">
                   <p className="text-muted-foreground text-sm">No se puede cambiar el profesional asignado</p>
-                  <p className="text-foreground font-medium">{block.profesional_nombre || `Profesional #${block.profesional}`}</p>
+                  <p className="text-foreground font-medium">Profesional #{block.professional}</p>
                 </div>
               </div>
 
@@ -343,8 +344,8 @@ export const BlockDetailModal = ({ isOpen, onClose, block, onRefreshCalendar }: 
                     <Input
                       id="edit-fecha"
                       type="date"
-                      value={editedFecha}
-                      onChange={(e) => setEditedFecha(e.target.value)}
+                      value={editedDate}
+                      onChange={(e) => setEditedDate(e.target.value)}
                       className="mt-1"
                     />
                   </div>
@@ -354,8 +355,8 @@ export const BlockDetailModal = ({ isOpen, onClose, block, onRefreshCalendar }: 
                       <Input
                         id="edit-hora-inicio"
                         type="time"
-                        value={editedHoraInicio}
-                        onChange={(e) => setEditedHoraInicio(e.target.value)}
+                        value={editedStartTime}
+                        onChange={(e) => setEditedStartTime(e.target.value)}
                         className="mt-1"
                       />
                     </div>
@@ -364,8 +365,8 @@ export const BlockDetailModal = ({ isOpen, onClose, block, onRefreshCalendar }: 
                       <Input
                         id="edit-hora-fin"
                         type="time"
-                        value={editedHoraFin}
-                        onChange={(e) => setEditedHoraFin(e.target.value)}
+                        value={editedEndTime}
+                        onChange={(e) => setEditedEndTime(e.target.value)}
                         className="mt-1"
                       />
                     </div>
@@ -382,8 +383,8 @@ export const BlockDetailModal = ({ isOpen, onClose, block, onRefreshCalendar }: 
                   <h3 className="text-lg font-semibold">Razón del Bloqueo *</h3>
                 </div>
                 <Textarea
-                  value={editedRazon}
-                  onChange={(e) => setEditedRazon(e.target.value)}
+                  value={editedReason}
+                  onChange={(e) => setEditedReason(e.target.value)}
                   placeholder="Ej: Vacaciones, Licencia médica, Reunión..."
                   rows={4}
                   className="resize-none"
@@ -392,16 +393,16 @@ export const BlockDetailModal = ({ isOpen, onClose, block, onRefreshCalendar }: 
 
               {/* Botones de edición */}
               <div className="flex gap-3 pt-4">
-                <Button 
-                  variant="outline" 
-                  className="flex-1" 
+                <Button
+                  variant="outline"
+                  className="flex-1"
                   onClick={cancelEditing}
                   disabled={isSaving}
                 >
                   Cancelar
                 </Button>
-                <Button 
-                  className="flex-1" 
+                <Button
+                  className="flex-1"
                   onClick={handleSaveChanges}
                   disabled={isSaving}
                 >

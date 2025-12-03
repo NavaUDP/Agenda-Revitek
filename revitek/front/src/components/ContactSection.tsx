@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Phone, MessageSquare, MapPin, Clock } from "lucide-react";
@@ -41,7 +42,7 @@ const ContactSection = () => {
                 <p className="text-muted-foreground">
                   Contáctanos directamente por WhatsApp para agendar tu servicio
                 </p>
-                <Button 
+                <Button
                   className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                   onClick={() => window.open('https://api.whatsapp.com/send/?phone=56922486301', '_blank')}
                 >
@@ -93,17 +94,17 @@ const ContactSection = () => {
                 <p className="text-muted-foreground">
                   Agenda tu cita ahora y déjanos cuidar de tu vehículo
                 </p>
-                
+
                 <div className="space-y-4">
-                  <Button 
+                  <Button
+                    asChild
                     size="lg"
                     className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
-                    onClick={() => window.open('https://revitek.site.agendapro.com/cl', '_blank')}
                   >
-                    AGENDA TU HORA
+                    <Link to="/agendar">AGENDA TU HORA</Link>
                   </Button>
-                  
-                  <Button 
+
+                  <Button
                     size="lg"
                     variant="outline"
                     className="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground"

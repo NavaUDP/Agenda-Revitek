@@ -85,6 +85,9 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token["is_staff"] = user.is_staff
         token["first_name"] = user.first_name
         token["last_name"] = user.last_name
+        
+        if hasattr(user, 'professional_profile'):
+            token["professional_id"] = user.professional_profile.id
 
         return token
 

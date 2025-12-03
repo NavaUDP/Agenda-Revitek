@@ -15,6 +15,7 @@ import AdminServicesPage from '../pages/AdminServicesPage'
 import AdminAssignmentsPage from '../pages/AdminAssignmentsPage';
 import ProfessionalEditPage from '../pages/ProfessionalEditPage';
 import ConfirmReservationPage from '../pages/ConfirmReservationPage';
+import ReservationsPage from '../pages/ReservationsPage';
 import NotFound from '../pages/NotFound';
 
 export function AppRoutes() {
@@ -55,6 +56,7 @@ export function AppRoutes() {
         <Route path="profesionales/:id" element={<ProfessionalEditPage />} />
         <Route path="servicios" element={<AdminServicesPage />} />
         <Route path="asignaciones" element={<AdminAssignmentsPage />} />
+        <Route path="reservas" element={<ReservationsPage />} />
       </Route>
 
       {/* --- RUTA PARA PÁGINAS NO ENCONTRADAS --- */}

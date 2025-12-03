@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
-import { listProfesionales } from "../api/profesionales";
-import { listServicios } from "../api/servicios";
-import { listSlots, createReserva, getReserva, type ReservaPayload } from "../api/agenda";
-import { getEstadoReserva } from "../api/estados";
+import { listProfessionals } from "../api/profesionales";
+import { listAllServices } from "../api/servicios";
+import { listSlots, createReservation, getReservation, type ReservationPayload } from "../api/agenda";
+
 
 export function useAgendaApi() {
   const [loading, setLoading] = useState(false);
@@ -17,11 +17,11 @@ export function useAgendaApi() {
 
   return {
     loading, error,
-    listProfesionales: () => wrap(listProfesionales),
-    listServicios: (profId: number) => wrap(() => listServicios(profId)),
-    listSlots: (profId: number, fecha: string) => wrap(() => listSlots({ profesionalId: profId, fecha })),
-    createReserva: (payload: ReservaPayload) => wrap(() => createReserva(payload)),
-    getReserva: (id: number) => wrap(() => getReserva(id)),
-    getEstadoReserva: (id: number) => wrap(() => getEstadoReserva(id)),
+    listProfesionales: () => wrap(listProfessionals),
+    listServicios: (profId: number) => wrap(() => listAllServices({ include_inactive: false })), // Assuming default behavior, or check usage
+    listSlots: (profId: number, fecha: string) => wrap(() => listSlots({ professionalId: profId, date: fecha })),
+    createReserva: (payload: ReservationPayload) => wrap(() => createReservation(payload)),
+    getReserva: (id: number) => wrap(() => getReservation(id)),
+
   };
 }

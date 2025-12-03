@@ -2,6 +2,10 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager, Group, Permission
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
+from django.core.validators import MinValueValidator, MaxValueValidator
+import datetime
+
+from .utils import normalize_phone
 
 
 # --- User Manager personalizado (login con email) ---
@@ -26,6 +30,35 @@ class CustomUserManager(BaseUserManager):
         extra_fields.setdefault("is_active", True)
 
         return self.create_user(email, password, **extra_fields)
+
+    def find_by_phone(self, phone):
+        """
+        Intenta encontrar un usuario por teléfono usando lógica difusa.
+        """
+        if not phone:
+            return None
+            
+        # 1. Limpiar input
+        clean_phone = ''.join(filter(str.isdigit, phone))
+        
+        # 2. Intento exacto
+        user = self.filter(phone=clean_phone).first()
+        if user:
+            return user
+            
+        # 3. Si tiene 9 dígitos, probar agregando 56
+        if len(clean_phone) == 9:
+            user = self.filter(phone='56' + clean_phone).first()
+            if user:
+                return user
+                
+        # 4. Si tiene prefijo 56, probar quitándolo (caso raro pero posible)
+        if clean_phone.startswith('56') and len(clean_phone) > 9:
+             user = self.filter(phone=clean_phone[2:]).first()
+             if user:
+                 return user
+                 
+        return None
 
 
 # --- User principal del sistema ---
@@ -58,6 +91,12 @@ class User(AbstractUser):
     )
 
     objects = CustomUserManager()
+
+    def save(self, *args, **kwargs):
+        # Normalize phone
+        if self.phone:
+            self.phone = normalize_phone(self.phone)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.email
@@ -103,7 +142,14 @@ class Vehicle(models.Model):
     license_plate = models.CharField(max_length=10, unique=True)
     brand = models.CharField(max_length=50)
     model = models.CharField(max_length=50)
-    year = models.IntegerField(null=True, blank=True)
+    year = models.IntegerField(
+        null=True, 
+        blank=True,
+        validators=[
+            MinValueValidator(1900),
+            MaxValueValidator(datetime.date.today().year + 1)
+        ]
+    )
 
     def __str__(self):
         return f"{self.brand} {self.model} ({self.license_plate})"

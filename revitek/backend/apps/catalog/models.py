@@ -1,4 +1,5 @@
 from django.db import models
+from .validators import validate_time_list
 
 
 class Category(models.Model):
@@ -60,7 +61,8 @@ class ServiceTimeRule(models.Model):
     # Lista de horas tipo: ["09:00", "11:00", "13:00"]
     allowed_times = models.JSONField(
         default=list,
-        help_text="Lista de horas permitidas en formato HH:MM"
+        help_text="Lista de horas permitidas en formato HH:MM",
+        validators=[validate_time_list]
     )
 
     class Meta:

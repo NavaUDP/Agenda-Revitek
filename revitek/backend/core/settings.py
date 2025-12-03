@@ -14,6 +14,7 @@ from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 import os
+import dj_database_url
 
 load_dotenv()
 
@@ -28,18 +29,14 @@ PROJECT_ROOT = BASE_DIR.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-u5r^24mj-pe7ro^&)5qfwc(4vn)fzja7^3_f()6li&6zck^v3a'
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-u5r^24mj-pe7ro^&)5qfwc(4vn)fzja7^3_f()6li&6zck^v3a')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "zeroth-proctodaeal-hattie.ngrok-free.dev",
-    ".ngrok-free.dev",
-]
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,.ngrok-free.dev').split(',')
 
 AUTH_USER_MODEL = "clients.User"
 
@@ -74,9 +71,7 @@ MIDDLEWARE = [
 ]
 
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-]
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173').split(',')
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "authorization",
@@ -84,7 +79,7 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 
 CORS_ALLOW_METHODS = list(default_methods)
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 
 
 ROOT_URLCONF = 'core.urls'
@@ -108,14 +103,22 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 
 DATABASES = {
-    'default': {
+    'default': dj_database_url.config(
+        default='postgresql://user:password@localhost:5432/revitek_db', # Fallback dummy URL, real fallback is below
+        conn_max_age=600,
+        ssl_require=False
+    )
+}
+
+# If DATABASE_URL is not set (local dev), use the service file approach or local config
+if not os.environ.get('DATABASE_URL'):
+    DATABASES['default'] = {
         'ENGINE': 'django.db.backends.postgresql',
         'OPTIONS': {
             'service': 'revitek_service',
             'passfile': PROJECT_ROOT / '.my_pgpass'
         }
     }
-}
 
 
 # Password validation
@@ -182,5 +185,8 @@ WHATSAPP_VERIFY_TOKEN = os.environ.get("WHATSAPP_VERIFY_TOKEN", "revitek_secret_
 
 # reCAPTCHA Configuration
 RECAPTCHA_SECRET_KEY = os.environ.get('RECAPTCHA_SECRET_KEY', '')
+
+# Frontend URL for confirmation links
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 
 

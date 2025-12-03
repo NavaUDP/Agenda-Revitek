@@ -37,9 +37,10 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        queryset = User.objects.prefetch_related('vehicles', 'addresses')
         if user.is_staff:
-            return User.objects.all()
-        return User.objects.filter(id=user.id)
+            return queryset.all()
+        return queryset.filter(id=user.id)
 
     @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def lookup(self, request):
@@ -56,8 +57,7 @@ class UserViewSet(viewsets.ModelViewSet):
         if email:
             user = User.objects.filter(email__iexact=email).first()
         elif phone:
-            # Simple phone matching (exact match for now)
-            user = User.objects.filter(phone=phone).first()
+            user = User.objects.find_by_phone(phone)
 
         if not user:
             return Response({"found": False}, status=404)
@@ -66,14 +66,34 @@ class UserViewSet(viewsets.ModelViewSet):
         vehicle = user.vehicles.order_by('-id').first()
         address = user.addresses.order_by('-id').first()
 
+        # SECURITY: Mask sensitive data for public lookup
+        vehicle_data = None
+        if vehicle:
+            vehicle_data = {
+                "id": vehicle.id,
+                "brand": vehicle.brand,
+                "model": vehicle.model,
+                # Mask plate: AB-CD-12 -> AB-**-**
+                "license_plate": f"{vehicle.license_plate[:2]}****" if len(vehicle.license_plate) > 2 else "**"
+            }
+
+        address_data = None
+        if address:
+            address_data = {
+                "id": address.id,
+                "commune": address.commune.name, # Safe
+                # Mask street: Av. Providencia 1234 -> Av. Provi******
+                "street": f"{address.street[:5]}******" if len(address.street) > 5 else "***",
+                "number": "**",
+                "alias": address.alias
+            }
+
         data = {
             "found": True,
             "first_name": user.first_name,
-            "last_name": user.last_name,
-            "email": user.email,
-            "phone": user.phone,
-            "vehicle": VehicleSerializer(vehicle).data if vehicle else None,
-            "address": AddressSerializer(address).data if address else None,
+            "last_name": f"{user.last_name[:1]}." if user.last_name else "",
+            "vehicle": vehicle_data,
+            "address": address_data,
         }
         return Response(data)
 

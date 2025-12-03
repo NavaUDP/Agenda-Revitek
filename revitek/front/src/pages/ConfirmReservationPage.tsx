@@ -1,7 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { confirmReservation } from '@/api/agenda';
 
 export default function ConfirmReservationPage() {
     const { token } = useParams<{ token: string }>();
@@ -16,15 +18,7 @@ export default function ConfirmReservationPage() {
             return;
         }
 
-        // Call backend confirmation endpoint
-        fetch(`http://localhost:8000/agenda/confirm/${token}/`)
-            .then(res => {
-                if (res.ok) {
-                    return res.json();
-                } else {
-                    return res.json().then(data => Promise.reject(data));
-                }
-            })
+        confirmReservation(token)
             .then(data => {
                 setStatus('success');
                 setMessage(data.detail || '¡Reserva confirmada exitosamente!');
@@ -35,62 +29,66 @@ export default function ConfirmReservationPage() {
                 }, 3000);
             })
             .catch(error => {
+                console.error("Error confirming reservation:", error);
                 setStatus('error');
-                setMessage(error.detail || 'Error al confirmar la reserva. Por favor contacta al administrador.');
+                // Handle axios error or generic error
+                const msg = error.response?.data?.detail || error.message || 'Error al confirmar la reserva.';
+                setMessage(msg);
             });
     }, [token, navigate]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-            <Card className="max-w-md w-full">
+            <Card className="max-w-md w-full shadow-lg">
                 <CardHeader>
-                    <CardTitle className="text-center">Confirmación de Reserva</CardTitle>
+                    <CardTitle className="text-center text-2xl">Confirmación de Reserva</CardTitle>
                 </CardHeader>
-                <CardContent className="flex flex-col items-center gap-4">
+                <CardContent className="flex flex-col items-center gap-6 py-6">
                     {status === 'loading' && (
-                        <>
-                            <Loader2 className="h-16 w-16 text-blue-500 animate-spin" />
-                            <p className="text-center text-muted-foreground">
+                        <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-300">
+                            <Loader2 className="h-16 w-16 text-primary animate-spin" />
+                            <p className="text-center text-muted-foreground font-medium">
                                 Verificando tu reserva...
                             </p>
-                        </>
+                        </div>
                     )}
 
                     {status === 'success' && (
-                        <>
-                            <CheckCircle className="h-16 w-16 text-green-500" />
+                        <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-300">
+                            <CheckCircle className="h-20 w-20 text-green-500" />
                             <div className="text-center space-y-2">
-                                <p className="text-lg font-semibold text-green-700">
+                                <p className="text-xl font-bold text-green-700">
                                     ¡Confirmación Exitosa!
                                 </p>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-muted-foreground">
                                     {message}
                                 </p>
-                                <p className="text-xs text-muted-foreground mt-4">
-                                    Serás redirigido a la página principal en 3 segundos...
+                                <p className="text-sm text-muted-foreground mt-4 italic">
+                                    Serás redirigido a la página principal en unos segundos...
                                 </p>
                             </div>
-                        </>
+                        </div>
                     )}
 
                     {status === 'error' && (
-                        <>
-                            <XCircle className="h-16 w-16 text-red-500" />
+                        <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-300">
+                            <XCircle className="h-20 w-20 text-red-500" />
                             <div className="text-center space-y-2">
-                                <p className="text-lg font-semibold text-red-700">
+                                <p className="text-xl font-bold text-red-700">
                                     Error de Confirmación
                                 </p>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-muted-foreground">
                                     {message}
                                 </p>
-                                <button
+                                <Button
                                     onClick={() => navigate('/')}
-                                    className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+                                    className="mt-4 w-full"
+                                    variant="default"
                                 >
                                     Volver al Inicio
-                                </button>
+                                </Button>
                             </div>
-                        </>
+                        </div>
                     )}
                 </CardContent>
             </Card>

@@ -136,7 +136,10 @@ export const AdminBookingModal = ({
         setHoraFin(initialData.hora_fin);
 
         if (initialData.type === 'appointment') {
-          setCliente(initialData.cliente || { nombre: '', apellido: '', email: '', telefono: '' });
+          setCliente({
+            ...initialData.cliente,
+            telefono: initialData.cliente?.telefono?.replace(/^(\+?56)/, '') || ''
+          } as any);
           setVehiculo(initialData.vehiculo || { patente: '', marca: '' });
           setDireccion(initialData.direccion || { calle: '', numero: '' });
           setSelectedServices(initialData.servicios || []);
@@ -429,12 +432,21 @@ export const AdminBookingModal = ({
                     </div>
                     <div>
                       <Label htmlFor="telefono">Teléfono *</Label>
-                      <Input
-                        id="telefono"
-                        value={cliente.telefono}
-                        onChange={(e) => setCliente({ ...cliente, telefono: e.target.value })}
-                        className={errors.telefono ? 'border-red-500' : ''}
-                      />
+                      <div className="flex">
+                        <div className="flex items-center justify-center px-3 border border-r-0 rounded-l-md bg-muted text-muted-foreground border-input">
+                          +56
+                        </div>
+                        <Input
+                          id="telefono"
+                          value={cliente.telefono}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 9);
+                            setCliente({ ...cliente, telefono: val });
+                          }}
+                          placeholder="9 1234 5678"
+                          className={`rounded-l-none ${errors.telefono ? 'border-red-500' : ''}`}
+                        />
+                      </div>
                       {errors.telefono && <p className="text-sm text-red-500 mt-1">{errors.telefono}</p>}
                     </div>
                   </div>

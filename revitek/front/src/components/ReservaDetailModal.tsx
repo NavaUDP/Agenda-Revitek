@@ -5,14 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { User, Car, MapPin, Calendar, Clock, FileText, X } from "lucide-react";
 import { useState } from "react";
-import { cancelReserva, updateReservaStatus } from "@/api/agenda";
+import { cancelReservation, updateReservationStatus, ReservationDetailed } from "@/api/agenda";
 import { toast } from "sonner";
 import { CheckCircle } from "lucide-react";
 
 interface ReservaDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  reserva: any; // Idealmente usar el tipo ReservaDetallada
+  reserva: ReservationDetailed;
   onCancelSuccess?: () => void; // Callback cuando se cancela exitosamente
   onRefreshCalendar?: () => void; // Callback para refrescar el calendario
 }
@@ -55,7 +55,7 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
   const handleConfirmReserva = async () => {
     setIsConfirming(true);
     try {
-      await updateReservaStatus(reserva.id, 'CONFIRMED');
+      await updateReservationStatus(reserva.id, 'CONFIRMED');
       toast.success('Reserva confirmada exitosamente');
 
       // Refresh and close
@@ -72,8 +72,8 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
   const handleConfirmCancel = async () => {
     setIsCancelling(true);
     try {
-      const result = await cancelReserva(reserva.id);
-      setCancelledReserva(result);
+      await cancelReservation(reserva.id);
+      setCancelledReserva({ id: reserva.id }); // Mock result since void return
       setShowConfirmDialog(false);
 
       // Llamar callback si existe
@@ -125,7 +125,7 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
                 <Calendar className="h-5 w-5 text-primary" />
                 <span>Detalle de Reserva #{reserva.id}</span>
               </DialogTitle>
-              {getEstadoBadge(reserva.status || reserva.estado)}
+              {getEstadoBadge(reserva.status)}
             </div>
           </DialogHeader>
 
@@ -338,13 +338,13 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
             </div>
 
             {/* OBSERVACIONES */}
-            {reserva.nota && (
+            {reserva.note && (
               <>
                 <Separator />
                 <div>
                   <h3 className="font-semibold text-lg mb-2">Observaciones</h3>
                   <div className="bg-muted/30 rounded-lg p-4">
-                    <p className="text-sm">{reserva.nota}</p>
+                    <p className="text-sm">{reserva.note}</p>
                   </div>
                 </div>
               </>
@@ -357,7 +357,7 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
             </Button>
 
             {/* Botón Confirmar solo si está PENDING */}
-            {(reserva.status === 'PENDING' || reserva.estado === 'PENDING') && (
+            {reserva.status === 'PENDING' && (
               <Button
                 className="bg-green-600 hover:bg-green-700 text-white"
                 onClick={handleConfirmReserva}
@@ -371,7 +371,7 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
               </Button>
             )}
 
-            {reserva.estado !== 'CANCELADO' && reserva.status !== 'CANCELADO' && (
+            {reserva.status !== 'CANCELLED' && (
               <Button
                 variant="destructive"
                 onClick={handleCancelClick}

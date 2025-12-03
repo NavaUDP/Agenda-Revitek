@@ -1,7 +1,11 @@
 import requests
 import json
+import logging
 from django.conf import settings
 from .models import WhatsAppLog
+from .messages import BotMessages
+
+logger = logging.getLogger(__name__)
 
 class MetaClient:
     """
@@ -68,14 +72,11 @@ class MetaClient:
 
         service_names = ", ".join([s.service.name for s in reservation.services.all()])
 
-        body_text = (
-            f"👋 Hola {reservation.client.first_name},\n\n"
-            f"Te recordamos que tienes una reserva programada con *Revitek*.\n\n"
-            f"🔧 *Servicio:* {service_names}\n"
-            f"📅 *Fecha:* {date_str}\n"
-            f"⏰ *Hora:* {time_str}\n\n"
-            f"Nuestro equipo acudirá a tu dirección (o ubicación acordada) para realizar el servicio o retiro del vehículo.\n\n"
-            f"Por favor, confirma que podremos ser recibidos en el horario agendado."
+        body_text = BotMessages.CONFIRMATION_INTERACTIVE_BODY.format(
+            name=reservation.client.first_name,
+            service_names=service_names,
+            date=date_str,
+            time=time_str
         )
 
         payload = {
@@ -115,10 +116,10 @@ class MetaClient:
         Uses template: reservation_confirmatio
         """
         if not reservation.client.phone:
-            print("DEBUG: Client has no phone number.")
+            logger.warning(f"Client {reservation.client.id} has no phone number. Cannot send approval template.")
             return None
         
-        print(f"DEBUG: Sending approval template to {reservation.client.phone}")
+        logger.info(f"Sending approval template to {reservation.client.phone}")
 
         # Fix: Access via reservation_slots
         first_res_slot = reservation.reservation_slots.select_related('slot').order_by('slot__start').first()
@@ -162,7 +163,7 @@ class MetaClient:
         This replaces the template message when admin approves.
         """
         if not reservation.client.phone:
-            print("No phone number for reservation confirmation")
+            logger.warning("No phone number for reservation confirmation")
             return None
         
         # Get reservation details
@@ -179,19 +180,17 @@ class MetaClient:
         
         # Confirmation link - for now using localhost, update in production
         # Production should be: https://tudominio.com/confirmar/{token}
-        confirmation_url = f"http://localhost:5173/confirmar/{token}"
+        # Confirmation link
+        base_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+        confirmation_url = f"{base_url}/confirmar/{token}"
         
         # Send text message with link
-        message = (
-            f"✅ *¡Tu reserva ha sido aprobada!*\n\n"
-            f"📋 *Detalles:*\n"
-            f"• Servicio: {service_names}\n"
-            f"• Fecha: {date_str}\n"
-            f"• Hora: {time_str}\n\n"
-            f"⚠️ *Importante:* Para confirmar tu asistencia, haz clic en el siguiente enlace:\n\n"
-            f"{confirmation_url}\n\n"
-            f"⏰ Este enlace expira en 2 horas.\n"
-            f"Si no confirmas, tu reserva será cancelada."
+        # Send text message with link
+        message = BotMessages.CONFIRMATION_LINK_MSG.format(
+            service_names=service_names,
+            date=date_str,
+            time=time_str,
+            url=confirmation_url
         )
         
         return self.send_text(reservation.client.phone, message, reservation=reservation)
@@ -208,7 +207,7 @@ class MetaClient:
             status='SENT', # Optimistic
             reservation=reservation
         )
-        print(f"DEBUG: Created WhatsAppLog #{log.id}. Sending request to Meta...")
+        logger.debug(f"Created WhatsAppLog #{log.id}. Sending request to Meta...")
 
         try:
             response = requests.post(self.api_url, headers=self.headers, json=payload, timeout=10)
@@ -323,26 +322,26 @@ class WebhookHandler:
                                     if reservation.status != 'CANCELLED':
                                         reservation.status = 'RECONFIRMED'
                                         reservation.save(update_fields=['status'])
-                                        client.send_text(from_phone, "¡Excelente! Tu reserva ha sido re-confirmada. Nuestro equipo estará en tu dirección en el horario acordado.", reservation)
+                                        client.send_text(from_phone, BotMessages.CONFIRMATION_SUCCESS, reservation)
                                     else:
                                         client.send_text(from_phone, "Lo sentimos, esta reserva ya estaba cancelada.", reservation)
 
                                 elif action == 'CANCEL':
                                     if reservation.status != 'CANCELLED':
                                         cancel_reservation(reservation.id, cancelled_by="client_whatsapp")
-                                        client.send_text(from_phone, "Entendido, tu reserva ha sido cancelada. Esperamos poder atenderte en otra oportunidad.", reservation)
+                                        client.send_text(from_phone, BotMessages.CONFIRMATION_CANCELLED, reservation)
                                     else:
-                                        client.send_text(from_phone, "La reserva ya estaba cancelada.", reservation)
+                                        client.send_text(from_phone, BotMessages.CONFIRMATION_ALREADY_CANCELLED, reservation)
                             
                             except (Reservation.DoesNotExist, ValueError):
-                                client.send_text(from_phone, "No pudimos encontrar la reserva asociada a esta acción.")
+                                client.send_text(from_phone, BotMessages.CONFIRMATION_NOT_FOUND)
             
             # Handle Template Button Clicks (type='button')
             elif msg_type == 'button':
                 button_payload = msg.get('button', {}).get('payload')
                 context_id = msg.get('context', {}).get('id')
                 
-                print(f"DEBUG: Received button click. Payload: {button_payload}, Context: {context_id}")
+                logger.debug(f"Received button click. Payload: {button_payload}, Context: {context_id}")
                 
                 if context_id:
                     try:
@@ -354,22 +353,22 @@ class WebhookHandler:
                             log.reservation = reservation
                             log.save()
                             
-                            print(f"DEBUG: Found reservation #{reservation.id} from context.")
+                            logger.debug(f"Found reservation #{reservation.id} from context.")
 
                             # Logic for "Sí, confirmo" (or any positive payload)
                             # We assume the button is for confirmation since we sent a confirmation template
                             if reservation.status != 'CANCELLED':
                                 reservation.status = 'RECONFIRMED'
                                 reservation.save(update_fields=['status'])
-                                client.send_text(from_phone, "¡Excelente! Tu reserva ha sido re-confirmada. Nuestro equipo estará en tu dirección en el horario acordado.", reservation)
+                                client.send_text(from_phone, BotMessages.CONFIRMATION_SUCCESS, reservation)
                             else:
-                                client.send_text(from_phone, "Lo sentimos, esta reserva ya estaba cancelada.", reservation)
+                                client.send_text(from_phone, BotMessages.CONFIRMATION_ALREADY_CANCELLED, reservation)
                         else:
-                            print("DEBUG: Could not find original log or reservation for this context.")
-                            client.send_text(from_phone, "No pudimos identificar la reserva asociada.")
+                            logger.warning("Could not find original log or reservation for this context.")
+                            client.send_text(from_phone, BotMessages.CONFIRMATION_NOT_FOUND)
                             
                     except Exception as e:
-                        print(f"DEBUG: Error handling button click: {e}")
+                        logger.error(f"Error handling button click: {e}")
 
             # Handle Text (Chatbot)
             elif msg_type == 'text':
@@ -399,7 +398,7 @@ class ChatBot:
             session.state = 'MENU'
             session.data = {}
             session.save()
-            self.client.send_text(phone, "🔄 Perfecto, volvamos al inicio.\n\n")
+            self.client.send_text(phone, BotMessages.MENU_RESET)
             self.send_menu(phone)
             return
         
@@ -408,12 +407,7 @@ class ChatBot:
             session.state = 'MENU'
             session.data = {}
             session.save()
-            self.client.send_text(phone, (
-                "❌ Proceso cancelado.\n\n"
-                "No te preocupes, tus datos están seguros. "
-                "Cuando estés listo, escribe *'Menu'* para comenzar.\n\n"
-                "_Estoy aquí para ayudarte cuando lo necesites._ 😊"
-            ))
+            self.client.send_text(phone, BotMessages.CANCEL_SUCCESS)
             return
         
         # Help command
@@ -436,23 +430,19 @@ class ChatBot:
             
         elif session.state == 'WAITING_FOR_EMAIL':
             self.handle_email_input(session, text)
+
+        elif session.state == 'WAITING_FOR_ADDRESS':
+            self.handle_address_input(session, text)
             
         else:
-            # Fallback
+            # Fallback / Trigger on any message
+            # If the user sends something we don't recognize in a specific state, or if state is MENU
+            # we default to showing the menu.
+            # This ensures "Hola", "Buenas", etc. triggers the bot.
             self.send_menu(phone)
 
     def send_menu(self, phone):
-        body = (
-            "👋 *¡Hola! Bienvenido a Revitek* 🚗✨\n\n"
-            "Soy tu asistente virtual y estoy aquí para ayudarte. "
-            "Puedo ayudarte a agendar servicios, consultar tus reservas o conectarte con nuestro equipo.\n\n"
-            "*¿Qué te gustaría hacer hoy?*\n\n"
-            "1️⃣  Agendar un nuevo servicio\n"
-            "2️⃣  Consultar mis reservas activas\n"
-            "3️⃣  Hablar con un ejecutivo\n\n"
-            "_💡 Escribe el número de tu opción o escribe *'Menu'* en cualquier momento para volver aquí._"
-        )
-        self.client.send_text(phone, body)
+        self.client.send_text(phone, BotMessages.MENU_GREETING)
 
     def handle_menu_selection(self, session, text):
         text_lower = text.lower().strip()
@@ -466,39 +456,24 @@ class ChatBot:
             self.check_reservations(session.phone_number)
             
         elif text == '3' or 'ejecutivo' in text_lower or 'humano' in text_lower:
-            self.client.send_text(session.phone_number, (
-                "👨‍💻 *Perfecto, entendido.*\n\n"
-                "Un miembro de nuestro equipo revisará tu consulta y se pondrá en contacto contigo a la brevedad.\n\n"
-                "📞 Si tu consulta es urgente, puedes llamarnos directamente al *+56 9 XXXX XXXX*.\n\n"
-                "_Gracias por confiar en Revitek._"
-            ))
+            self.client.send_text(session.phone_number, BotMessages.MENU_HUMAN_HANDOFF)
             session.state = 'MENU'
             session.save()
             
         else:
-            self.client.send_text(session.phone_number, (
-                "🤔 Disculpa, no reconocí esa opción.\n\n"
-                "Por favor, responde con el número *1*, *2* o *3* según lo que necesites.\n\n"
-                "_O escribe 'Menu' para ver las opciones nuevamente._"
-            ))
+            self.client.send_text(session.phone_number, BotMessages.UNKNOWN_OPTION)
 
     def send_service_list(self, phone):
         from apps.catalog.models import Service
         services = Service.objects.filter(active=True).order_by('id')[:20]
         
-        msg = "🛠️ *Nuestros Servicios Disponibles*\n\n"
-        msg += "_Contamos con servicios de alta calidad para el cuidado de tu vehículo:_\n\n"
+        msg = BotMessages.SERVICE_LIST_HEADER
         
         for i, service in enumerate(services, 1):
             price_fmt = "{:,.0f}".format(service.price).replace(',', '.')
             msg += f"*{i}.* {service.name}\n   💰 ${price_fmt}\n"
             
-        msg += (
-            "\n━━━━━━━━━━━━━━━\n"
-            "👇 *¿Cuál servicio te interesa?*\n"
-            "Responde con el número correspondiente.\n\n"
-            "_Escribe 'Menu' para volver al inicio._"
-        )
+        msg += BotMessages.SERVICE_LIST_FOOTER
         self.client.send_text(phone, msg)
 
     def handle_service_selection(self, session, text):
@@ -514,26 +489,14 @@ class ChatBot:
                 session.save()
                 
                 price_fmt = "{:,.0f}".format(selected_service.price).replace(',', '.')
-                self.client.send_text(session.phone_number, (
-                    f"✅ *Excelente elección*\n\n"
-                    f"Has seleccionado: *{selected_service.name}*\n"
-                    f"💰 Valor: ${price_fmt}\n\n"
-                    f"📅 *¿Para qué fecha deseas agendar?*\n\n"
-                    f"Por favor, escribe la fecha en el siguiente formato:\n"
-                    f"*DD/MM/AAAA* (Ejemplo: 15/12/2025)\n\n"
-                    f"_💡 Tip: Asegúrate de agendar con al menos 24 horas de anticipación._"
+                self.client.send_text(session.phone_number, BotMessages.SERVICE_SELECTED.format(
+                    service_name=selected_service.name,
+                    price=price_fmt
                 ))
             else:
-                self.client.send_text(session.phone_number, (
-                    "⚠️ *Ups*, ese número no corresponde a ningún servicio de la lista.\n\n"
-                    "Por favor, verifica e intenta nuevamente con un número del 1 al " + str(len(services)) + "."
-                ))
+                self.client.send_text(session.phone_number, BotMessages.SERVICE_INVALID_OPTION.format(count=len(services)))
         except ValueError:
-            self.client.send_text(session.phone_number, (
-                "❌ *Formato incorrecto*\n\n"
-                "Por favor, responde solo con el *número* del servicio que deseas (por ejemplo: 1, 2, 3...).\n\n"
-                "_Si necesitas ver la lista nuevamente, escribe 'Menu'._"
-            ))
+            self.client.send_text(session.phone_number, BotMessages.SERVICE_FORMAT_ERROR)
 
     def handle_date_selection(self, session, text):
         from datetime import datetime, timedelta
@@ -543,21 +506,16 @@ class ChatBot:
             
             # Basic validation: future date
             if date_obj < today:
-                self.client.send_text(session.phone_number, (
-                    "⚠️ *Fecha no válida*\n\n"
-                    "La fecha que ingresaste ya pasó. \n\n"
-                    "Por favor, ingresa una fecha *futura* en formato DD/MM/AAAA.\n"
-                    "Ejemplo: " + (today + timedelta(days=1)).strftime("%d/%m/%Y")
+                self.client.send_text(session.phone_number, BotMessages.DATE_PAST_ERROR.format(
+                    next_day=(today + timedelta(days=1)).strftime("%d/%m/%Y")
                 ))
                 return
             
             # Check if date is too far in the future (e.g., more than 3 months)
             max_date = today + timedelta(days=90)
             if date_obj > max_date:
-                self.client.send_text(session.phone_number, (
-                    "⚠️ *Fecha muy lejana*\n\n"
-                    "Por el momento solo aceptamos reservas hasta 3 meses en adelante.\n\n"
-                    f"Por favor, elige una fecha antes del {max_date.strftime('%d/%m/%Y')}."
+                self.client.send_text(session.phone_number, BotMessages.DATE_TOO_FAR_ERROR.format(
+                    max_date=max_date.strftime('%d/%m/%Y')
                 ))
                 return
 
@@ -569,70 +527,101 @@ class ChatBot:
             self.send_time_slots(session.phone_number, date_obj)
             
         except ValueError:
-            self.client.send_text(session.phone_number, (
-                "❌ *Formato de fecha incorrecto*\n\n"
-                "No pude entender la fecha que ingresaste.\n\n"
-                "Por favor, usa exactamente este formato: *DD/MM/AAAA*\n\n"
-                "*Ejemplos válidos:*\n"
-                "• 03/12/2025\n"
-                "• 15/01/2026\n\n"
-                "_Intenta nuevamente._"
-            ))
+            self.client.send_text(session.phone_number, BotMessages.DATE_FORMAT_ERROR)
 
     def send_time_slots(self, phone, date_obj):
-        # TODO: Integrate with real slot availability logic
-        # For MVP, showing static slots or querying DB
-        day_name = date_obj.strftime('%A')
-        day_names_es = {
-            'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
-            'Thursday': 'Jueves', 'Friday': 'Viernes', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
-        }
-        day_es = day_names_es.get(day_name, day_name)
+        from apps.agenda.services import compute_aggregated_availability
         
-        msg = (
-            f"🕒 *Horarios Disponibles*\n"
-            f"📅 {day_es}, {date_obj.strftime('%d de %B del %Y')}\n\n"
-            "_Estos son los bloques horarios que tenemos disponibles:_\n\n"
-            "1️⃣  09:00 AM\n"
-            "2️⃣  10:00 AM\n"
-            "3️⃣  11:00 AM\n"
-            "4️⃣  03:00 PM (15:00)\n\n"
-            "━━━━━━━━━━━━━━━\n"
-            "👇 *¿Qué horario prefieres?*\n"
-            "Responde con el número de tu preferencia.\n\n"
-            "_Si ninguno te acomoda, escribe 'Menu' para elegir otra fecha._"
-        )
+        # Get selected service from session
+        from .models import WhatsAppSession
+        try:
+            session = WhatsAppSession.objects.get(phone_number=phone)
+            service_id = session.data.get('service_id')
+        except WhatsAppSession.DoesNotExist:
+            self.client.send_text(phone, BotMessages.ERROR_SESSION)
+            return
+
+        if not service_id:
+            self.client.send_text(phone, BotMessages.SERVICE_NONE_SELECTED)
+            return
+
+        # Fetch real availability
+        # compute_aggregated_availability expects list of service_ids and date string "YYYY-MM-DD"
+        date_str = date_obj.strftime("%Y-%m-%d")
+        available_slots = compute_aggregated_availability([service_id], date_str)
+        
+        if not available_slots:
+            self.client.send_text(phone, BotMessages.DATE_NO_SLOTS.format(date=date_obj.strftime('%d/%m/%Y')))
+            return
+
+        # Store available slots in session for validation in next step
+        # We store a simplified list: [{'start': '09:00', 'end': '10:00', 'label': '09:00 AM'}]
+        slots_data = []
+        msg = BotMessages.TIME_SLOTS_HEADER.format(date=date_obj.strftime('%d/%m/%Y'))
+
+        for i, slot in enumerate(available_slots, 1):
+            # slot is a dict: {'inicio': datetime, 'fin': datetime, ...}
+            start_dt = slot['inicio']
+            end_dt = slot['fin']
+            start_str = start_dt.strftime("%H:%M")
+            label = start_dt.strftime("%I:%M %p")
+            
+            slots_data.append({
+                'start': start_str,
+                'label': label
+            })
+            
+            msg += f"{i}️⃣  {label}\n"
+            
+            # Limit to 10 options for UX
+            if i >= 10:
+                msg += "\n_(Mostrando los primeros 10 horarios)_\n"
+                break
+
+        session.data['available_slots'] = slots_data
+        session.save()
+
+        msg += BotMessages.TIME_SLOTS_FOOTER
         self.client.send_text(phone, msg)
 
     def handle_time_selection(self, session, text):
-        # Mock implementation for MVP
-        times = ["09:00", "10:00", "11:00", "15:00"]
-        time_labels = ["09:00 AM", "10:00 AM", "11:00 AM", "03:00 PM"]
+        available_slots = session.data.get('available_slots', [])
+        
+        if not available_slots:
+            self.client.send_text(session.phone_number, BotMessages.TIME_SESSION_EXPIRED)
+            return
+
         try:
             idx = int(text) - 1
-            if 0 <= idx < len(times):
-                selected_time = times[idx]
-                selected_label = time_labels[idx]
+            if 0 <= idx < len(available_slots):
+                selected_slot = available_slots[idx]
+                selected_time = selected_slot['start']
+                selected_label = selected_slot['label']
                 
                 # Send confirmation that we're processing
-                self.client.send_text(session.phone_number, (
-                    f"⏰ *Horario seleccionado: {selected_label}*\n\n"
-                    "Un momento por favor, estoy verificando la disponibilidad y procesando tu reserva...\n\n"
-                    "_Esto tomará solo unos segundos._ ⚙️"
-                ))
+                self.client.send_text(session.phone_number, BotMessages.TIME_SELECTED.format(time_label=selected_label))
                 
-                self.finalize_booking(session, selected_time)
+                # Save time
+                session.data['time'] = selected_time
+                session.save()
+
+                # Check if user exists to decide next step
+                user = self.find_user_by_phone(session.phone_number)
+                
+                if not user:
+                    # Ask for email
+                    session.state = 'WAITING_FOR_EMAIL'
+                    session.save()
+                    self.client.send_text(session.phone_number, BotMessages.EMAIL_REQUEST)
+                else:
+                    # Ask for address
+                    session.state = 'WAITING_FOR_ADDRESS'
+                    session.save()
+                    self.client.send_text(session.phone_number, BotMessages.ADDRESS_REQUEST)
             else:
-                self.client.send_text(session.phone_number, (
-                    "⚠️ *Opción no válida*\n\n"
-                    f"Por favor, elige un número del 1 al {len(times)} según los horarios mostrados.\n\n"
-                    "_O escribe 'Menu' si deseas cambiar la fecha._"
-                ))
+                self.client.send_text(session.phone_number, BotMessages.TIME_INVALID_OPTION.format(count=len(available_slots)))
         except ValueError:
-            self.client.send_text(session.phone_number, (
-                "❌ *Formato incorrecto*\n\n"
-                "Por favor, responde solo con el *número* del horario (1, 2, 3 o 4)."
-            ))
+            self.client.send_text(session.phone_number, BotMessages.TIME_FORMAT_ERROR)
 
     def find_user_by_phone(self, phone_number):
         from apps.clients.models import User
@@ -651,15 +640,14 @@ class ChatBot:
             
         search_suffix = raw_phone[-8:]
         
-        # Inefficient but functional for MVP: Iterate and check suffix
-        # Ideally, we should store normalized phones in DB
-        users = User.objects.all()
-        for u in users:
-            if not u.phone: continue
-            u_phone = ''.join(filter(str.isdigit, u.phone))
-            if u_phone.endswith(search_suffix):
-                return u
-        return None
+        if len(raw_phone) < 8:
+            return None
+            
+        search_suffix = raw_phone[-8:]
+        
+        # Optimized search: Direct DB query using endswith
+        # Since we normalize phones on save, this is reliable
+        return User.objects.filter(phone__endswith=search_suffix).first()
 
     def handle_email_input(self, session, text):
         from apps.clients.models import User
@@ -668,14 +656,7 @@ class ChatBot:
         # Simple email validation
         email = text.strip().lower()
         if not re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email):
-            self.client.send_text(session.phone_number, (
-                "❌ *Correo no válido*\n\n"
-                "El formato del correo electrónico no es correcto.\n\n"
-                "*Ejemplos válidos:*\n"
-                "• juan.perez@gmail.com\n"
-                "• maria@empresa.cl\n\n"
-                "Por favor, verifica e intenta nuevamente."
-            ))
+            self.client.send_text(session.phone_number, BotMessages.EMAIL_INVALID)
             return
 
         # Check if user exists
@@ -684,11 +665,7 @@ class ChatBot:
             # Link phone to user
             user.phone = session.phone_number
             user.save()
-            self.client.send_text(session.phone_number, (
-                f"✅ *¡Cuenta vinculada exitosamente!*\n\n"
-                f"Bienvenido de vuelta, *{user.first_name}*. 👋\n\n"
-                f"Continuemos con tu reserva..."
-            ))
+            self.client.send_text(session.phone_number, BotMessages.EMAIL_LINKED.format(name=user.first_name))
         except User.DoesNotExist:
             # Create new user
             user = User.objects.create_user(
@@ -696,25 +673,85 @@ class ChatBot:
                 first_name="Cliente",  # Placeholder
                 phone=session.phone_number
             )
-            self.client.send_text(session.phone_number, (
-                "✅ *¡Cuenta creada exitosamente!*\n\n"
-                f"Hemos registrado tu correo: {email}\n\n"
-                "Ahora formas parte de la familia Revitek. 🎉\n\n"
-                "Continuemos con tu reserva..."
-            ))
+            self.client.send_text(session.phone_number, BotMessages.EMAIL_CREATED.format(email=email))
 
-        # Resume booking if data exists
-        if 'service_id' in session.data and 'date' in session.data and 'time' in session.data:
+        # Proceed to address collection
+        session.state = 'WAITING_FOR_ADDRESS'
+        session.save()
+        self.client.send_text(session.phone_number, BotMessages.ADDRESS_REQUEST)
+
+
+    def handle_address_input(self, session, text):
+        # Save address to session
+        session.data['address'] = text.strip()
+        session.save()
+        
+        # Proceed to finalize
+        if 'time' in session.data:
             self.finalize_booking(session, session.data['time'])
         else:
-            # If no booking data, go to menu
-            session.state = 'MENU'
-            session.save()
-            self.send_menu(session.phone_number)
+            self.client.send_text(session.phone_number, BotMessages.ERROR_SESSION)
+
+    def _parse_address(self, text):
+        """
+        Heuristic to parse address string into components.
+        Expected format: "Street Number, Complement, Commune"
+        """
+        import re
+        from apps.clients.models import Commune
+        
+        text = text.strip()
+        
+        # 1. Try to find Commune at the end
+        # We fetch all communes to check against
+        # In a real app with many communes, this might be slow, but for Chile/Santiago it's fine (~50 communes)
+        communes = list(Commune.objects.all())
+        selected_commune = None
+        
+        # Sort by length desc to match "San Joaquín" before "San"
+        communes.sort(key=lambda c: len(c.name), reverse=True)
+        
+        clean_text = text
+        for commune in communes:
+            if clean_text.lower().endswith(commune.name.lower()):
+                selected_commune = commune
+                # Remove commune from text (and trailing comma/spaces)
+                clean_text = clean_text[:-(len(commune.name))].strip().rstrip(',')
+                break
+        
+        # If no commune found, default to first one or specific default
+        if not selected_commune:
+            selected_commune = Commune.objects.first()
+
+        # 2. Parse Street and Number
+        # Regex: Capture everything until the last sequence of digits
+        # Example: "Av. Vicuña Mackenna 4927, Depto 3108"
+        # Street: "Av. Vicuña Mackenna"
+        # Number: "4927"
+        # Complement: ", Depto 3108"
+        
+        match = re.search(r'^(?P<street>.+?)\s+(?P<number>\d+)(?P<complement>.*)$', clean_text)
+        
+        if match:
+            street = match.group('street').strip()
+            number = match.group('number').strip()
+            complement = match.group('complement').strip().lstrip(',').strip()
+        else:
+            # Fallback if no number found
+            street = clean_text
+            number = "S/N"
+            complement = ""
+
+        return {
+            'street': street,
+            'number': number,
+            'complement': complement,
+            'commune': selected_commune
+        }
 
     def finalize_booking(self, session, time_str):
         from apps.agenda.models import Reservation, Slot, ReservationService, Professional
-        from apps.clients.models import User
+        from apps.clients.models import User, Address
         from apps.catalog.models import Service
         from datetime import datetime, time
         
@@ -729,19 +766,10 @@ class ChatBot:
         user = self.find_user_by_phone(session.phone_number)
         
         if not user:
-            # Ask for email to register/link
+            # Should not happen if flow is correct, but safety check
             session.state = 'WAITING_FOR_EMAIL'
             session.save()
-            self.client.send_text(session.phone_number, (
-                "👋 *¡Hola!*\n\n"
-                "Veo que es tu primera vez usando nuestro asistente virtual (o quizás cambiaste de número).\n\n"
-                "📧 *Para continuar con tu reserva, necesito que me proporciones tu correo electrónico:*\n\n"
-                "Esto nos permitirá:\n"
-                "• Enviarte confirmaciones\n"
-                "• Mantener un historial de tus servicios\n"
-                "• Comunicarnos contigo si hay algún cambio\n\n"
-                "_Por favor, escribe tu correo electrónico._"
-            ))
+            self.client.send_text(session.phone_number, BotMessages.EMAIL_REQUEST)
             return
 
         # 2. Find Service
@@ -833,11 +861,36 @@ class ChatBot:
             return
 
         # 4. Create Reservation
+        raw_address = session.data.get('address', 'Dirección no especificada')
+        
+        # Parse and Create Address
+        parsed_addr = self._parse_address(raw_address)
+        
+        address_obj, _ = Address.objects.update_or_create(
+            owner=user,
+            defaults={
+                'street': parsed_addr['street'],
+                'number': parsed_addr['number'],
+                'complement': parsed_addr['complement'],
+                'commune': parsed_addr['commune'],
+                'alias': "Casa (WhatsApp)" # Default alias
+            }
+        )
+
+        # Format address for note and message
+        formatted_address = f"{parsed_addr['street']} #{parsed_addr['number']}"
+        if parsed_addr['complement']:
+            formatted_address += f", {parsed_addr['complement']}"
+        formatted_address += f", {parsed_addr['commune'].name}"
+
+        note = f"Reserva creada vía WhatsApp Bot. Dirección: {formatted_address}"
+
         reservation = Reservation.objects.create(
             client=user,
             status='CONFIRMED', # Auto-confirm for WhatsApp
             total_min=service.duration_min,
-            note="Reserva creada vía WhatsApp Bot"
+            note=note,
+            address=address_obj
         )
         
         # Link Service
@@ -863,28 +916,16 @@ class ChatBot:
 
         # Format professional confirmation message
         price_fmt = "{:,.0f}".format(service.price).replace(',', '.')
-        msg = (
-            "🎉 *¡RESERVA CONFIRMADA!*\n\n"
-            "━━━━━━━━━━━━━━━\n"
-            "📋 *DETALLES DE TU RESERVA*\n\n"
-            f"🆔 Código: *#{reservation.pk}*\n"
-            f"👤 Cliente: *{user.first_name or user.email.split('@')[0]}*\n\n"
-            f"🔧 Servicio: *{service.name}*\n"
-            f"💰 Valor: ${price_fmt}\n"
-            f"⏱ Duración aprox: {service.duration_min} minutos\n\n"
-            f"📅 Fecha: *{date_str}*\n"
-            f"⏰ Hora: *{time_str}*\n"
-            f"👨‍🔧 Profesional: {selected_pro.first_name}\n\n"
-            "━━━━━━━━━━━━━━━\n\n"
-            "📍 *Ubicación:* [Dirección del Taller]\n"
-            "🅿️ Hay estacionamiento disponible\n\n"
-            "*📝 Recomendaciones:*\n"
-            "• Llega 5-10 minutos antes\n"
-            "• Trae tu cédula de identidad\n"
-            "• Si tienes algún documento del vehículo, tráelo\n\n"
-            "*¿Necesitas hacer cambios?*\n"
-            "Escríbenos o llama al +56 9 XXXX XXXX\n\n"
-            "_¡Gracias por confiar en Revitek! Nos vemos pronto._ 🚗✨"
+        msg = BotMessages.BOOKING_CONFIRMED.format(
+            id=reservation.pk,
+            client_name=user.first_name or user.email.split('@')[0],
+            service_name=service.name,
+            price=price_fmt,
+            duration=service.duration_min,
+            date=date_str,
+            time=time_str,
+            pro_name=selected_pro.first_name,
+            address=formatted_address
         )
         
         self.client.send_text(session.phone_number, msg)

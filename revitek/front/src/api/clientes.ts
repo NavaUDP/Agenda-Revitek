@@ -1,47 +1,16 @@
 // src/api/clientes.ts
 import api from "./http";
-
-// ============================
-// Tipos
-// ============================
-export interface Region {
-    id: number;
-    name: string;
-    roman_number: string;
-    number: number;
-}
-
-export interface Commune {
-    id: number;
-    name: string;
-    region: Region;
-}
-
-export interface AddressPayload {
-    alias?: string;
-    street: string;
-    number: string;
-    complement?: string;
-    commune_id: number;
-    notes?: string;
-    lat?: number | null;
-    lon?: number | null;
-}
-
-export interface VehiclePayload {
-    license_plate: string;
-    brand: string;
-    model: string;
-    year?: number;
-}
-
-export interface UserPayload {
-    email: string;
-    first_name: string;
-    last_name?: string;
-    phone: string;
-    password?: string;
-}
+import {
+    Region,
+    Commune,
+    User,
+    UserPayload,
+    Address,
+    AddressPayload,
+    Vehicle,
+    VehiclePayload,
+    LookupResult
+} from "@/types/clients";
 
 // ============================
 // REGIONES Y COMUNAS
@@ -59,17 +28,23 @@ export async function listCommunes(): Promise<Commune[]> {
 // ============================
 // USERS
 // ============================
-export async function createUser(data: UserPayload) {
+export async function createUser(data: UserPayload): Promise<User> {
     const res = await api.post("/clients/users/", data);
     return res.data;
 }
 
-export async function getMyUser() {
+export async function getMyUser(): Promise<User> {
     const res = await api.get("/clients/users/");
-    return res.data[0]; // solo retorna uno si NO es admin
+    // If the endpoint returns a list (standard ViewSet list), we take the first one?
+    // Or is this a custom endpoint?
+    // Based on original code: return res.data[0];
+    // This implies the endpoint returns a list of users (filtered by self?).
+    // Ideally this should be /clients/users/me/ or similar.
+    // Keeping original logic but typing it.
+    return res.data[0];
 }
 
-export async function lookupClient(params: { email?: string; phone?: string }) {
+export async function lookupClient(params: { email?: string; phone?: string }): Promise<LookupResult> {
     const res = await api.get("/clients/users/lookup/", { params });
     return res.data;
 }
@@ -77,12 +52,12 @@ export async function lookupClient(params: { email?: string; phone?: string }) {
 // ============================
 // ADDRESSES
 // ============================
-export async function listAddresses() {
+export async function listAddresses(): Promise<Address[]> {
     const res = await api.get("/clients/addresses/");
     return res.data;
 }
 
-export async function createAddress(data: AddressPayload) {
+export async function createAddress(data: AddressPayload): Promise<Address> {
     const res = await api.post("/clients/addresses/", data);
     return res.data;
 }
@@ -90,12 +65,12 @@ export async function createAddress(data: AddressPayload) {
 // ============================
 // VEHICLES
 // ============================
-export async function listVehicles() {
+export async function listVehicles(): Promise<Vehicle[]> {
     const res = await api.get("/clients/vehicles/");
     return res.data;
 }
 
-export async function createVehicle(data: VehiclePayload) {
+export async function createVehicle(data: VehiclePayload): Promise<Vehicle> {
     const res = await api.post("/clients/vehicles/", data);
     return res.data;
 }

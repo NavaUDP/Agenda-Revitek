@@ -1,50 +1,54 @@
-import { useState, useEffect } from 'react'; // <-- 1. Importar useState y useEffect
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2 } from 'lucide-react';
 
+const loginSchema = z.object({
+  email: z.string().email('Email inválido'),
+  password: z.string().min(1, 'La contraseña es requerida'),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 export const LoginPage = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  
-  // --- 3. Añadir estado de carga local ---
-  const [isLoggingIn, setIsLoggingIn] = useState(false); 
-
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { login, isAuthenticated } = useAuth();
 
-  // Definir a dónde redirigir al usuario tras el login
   const from = location.state?.from?.pathname || '/admin/agenda';
 
-  // --- 4. AÑADIR ESTE useEffect ---
-  // Este es el "detector" que reacciona al cambio de estado de autenticación.
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  });
+
   useEffect(() => {
     if (isAuthenticated) {
-      // Si el usuario está autenticado, redirigir a la página de admin
       navigate(from, { replace: true });
     }
-  }, [isAuthenticated, navigate, from]); // Se ejecuta cada vez que 'isAuthenticated' cambia
+  }, [isAuthenticated, navigate, from]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) return;
-
-    setIsLoggingIn(true); // <-- 5. Activar el estado de carga
+  const onSubmit = async (values: LoginFormValues) => {
+    setIsLoggingIn(true);
     try {
-      await login(email, password);
-      // La redirección se manejará automáticamente por el useEffect
-      // La notificación de "éxito" se maneja en AuthContext
+      await login(values.email, values.password);
+      // Redirection handled by useEffect
     } catch (error) {
-      console.error("Fallo el login (manejado en AuthContext):", error);
-      // La notificación de "error" se maneja en AuthContext
+      console.error("Login failed:", error);
+      // Error notification handled by AuthContext
     } finally {
-      setIsLoggingIn(false); // <-- 6. Desactivar el estado de carga
+      setIsLoggingIn(false);
     }
   };
 
@@ -56,40 +60,46 @@ export const LoginPage = () => {
           <CardDescription>Inicia sesión para acceder al panel de agenda.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="admin@revitek.cl"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="admin@revitek.cl" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contraseña</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            {/* --- 7. Modificar el botón --- */}
-            <Button type="submit" className="w-full" disabled={isLoggingIn}>
-              {isLoggingIn ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Iniciando sesión...
-                </>
-              ) : (
-                'Iniciar Sesión'
-              )}
-            </Button>
-          </form>
+              <Button type="submit" className="w-full" disabled={isLoggingIn}>
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Iniciando sesión...
+                  </>
+                ) : (
+                  'Iniciar Sesión'
+                )}
+              </Button>
+            </form>
+          </Form>
         </CardContent>
       </Card>
     </div>

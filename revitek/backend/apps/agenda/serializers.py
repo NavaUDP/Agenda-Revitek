@@ -20,7 +20,7 @@ from .models import (
     ReservationSlot,
     StatusHistory,
 )
-from .services import compute_total_duration
+from .services import compute_total_duration, create_reservation_transaction
 
 User = get_user_model()
 
@@ -49,6 +49,23 @@ class ProfessionalSerializer(serializers.ModelSerializer):
 
     def get_full_name(self, obj):
         return f"{obj.first_name} {obj.last_name}".strip()
+
+
+class ProfessionalAdminSerializer(ProfessionalSerializer):
+    """
+    Serializer for admins that includes user account details.
+    """
+    has_user = serializers.SerializerMethodField()
+    user_email = serializers.SerializerMethodField()
+
+    class Meta(ProfessionalSerializer.Meta):
+        fields = ProfessionalSerializer.Meta.fields + ["has_user", "user_email"]
+
+    def get_has_user(self, obj):
+        return obj.user is not None
+
+    def get_user_email(self, obj):
+        return obj.user.email if obj.user else None
 
 
 class ProfessionalServiceSerializer(serializers.ModelSerializer):
@@ -184,218 +201,7 @@ class ReservationCreateSerializer(serializers.Serializer):
     note = serializers.CharField(allow_blank=True, required=False)
 
     def create(self, validated_data):
-        from .models import ProfessionalService  # para evitar import circular
-
-        with transaction.atomic():
-            # ----------------------------------------------------------
-            # 1) CLIENTE
-            # ----------------------------------------------------------
-            client_data = validated_data.get("client") or {}
-            client = None
-            email = (client_data.get("email") or "").strip().lower()
-
-            if email:
-                client, created = User.objects.get_or_create(
-                    email=email,
-                    defaults={
-                        "first_name": (client_data.get("first_name") or "").strip(),
-                        "last_name": (client_data.get("last_name") or "").strip(),
-                        "phone": (client_data.get("phone") or "").strip(),
-                    },
-                )
-                if not created:
-                    # Actualiza datos básicos si vienen en el payload
-                    first_name = (client_data.get("first_name") or "").strip()
-                    last_name = (client_data.get("last_name") or "").strip()
-                    phone = (client_data.get("phone") or "").strip()
-
-                    changed_fields = []
-                    if first_name and first_name != client.first_name:
-                        client.first_name = first_name
-                        changed_fields.append("first_name")
-                    if last_name and last_name != client.last_name:
-                        client.last_name = last_name
-                        changed_fields.append("last_name")
-                    if phone and phone != getattr(client, "phone", None):
-                        client.phone = phone
-                        changed_fields.append("phone")
-
-                    if changed_fields:
-                        client.save(update_fields=changed_fields)
-
-            # ----------------------------------------------------------
-            # 2) VEHÍCULO (opcional)
-            # ----------------------------------------------------------
-            vehicle_data = validated_data.get("vehicle")
-            vehicle_obj = None
-            if vehicle_data and client:
-                plate = (vehicle_data.get("license_plate") or vehicle_data.get("plate") or "").strip().upper()
-                if plate:
-                    vehicle_defaults = {
-                        "owner": client,
-                        "brand": (vehicle_data.get("brand") or "").strip(),
-                        "model": (vehicle_data.get("model") or "").strip(),
-                        "year": vehicle_data.get("year"),
-                    }
-                    vehicle_obj, _ = Vehicle.objects.update_or_create(
-                        license_plate=plate,
-                        owner=client,
-                        defaults=vehicle_defaults,
-                    )
-
-            # ----------------------------------------------------------
-            # 3) DIRECCIÓN (opcional)
-            # ----------------------------------------------------------
-            address_data = validated_data.get("address")
-            address_obj = None
-            if address_data and client:
-                alias = (address_data.get("alias") or "Principal").strip()
-                street = (address_data.get("street") or "").strip()
-                number = (address_data.get("number") or "").strip()
-                commune = (address_data.get("commune") or "").strip()
-                region = (address_data.get("region") or "").strip()
-                complement = (address_data.get("complement") or "").strip()
-
-                if street:
-                    commune_id = address_data.get("commune_id")
-                    commune_obj = None
-                    if commune_id:
-                         from apps.clients.models import Commune
-                         commune_obj = Commune.objects.filter(id=commune_id).first()
-                    
-                    # Fallback: try to find by name if provided (optional, but good for robustness)
-                    if not commune_obj and commune:
-                         from apps.clients.models import Commune
-                         commune_obj = Commune.objects.filter(name__iexact=commune).first()
-
-                    if commune_obj:
-                        address_obj, _ = Address.objects.get_or_create(
-                            owner=client,
-                            alias=alias,
-                            defaults={
-                                "street": street,
-                                "number": number,
-                                "commune": commune_obj,
-                                "complement": complement,
-                            },
-                        )
-
-            # ----------------------------------------------------------
-            # 4) VALIDACIÓN DE SLOTS Y SERVICIOS
-            # ----------------------------------------------------------
-            professional_id = validated_data["professional_id"]
-            slot_initial = get_object_or_404(
-                Slot.objects.select_for_update(),
-                pk=validated_data["slot_id"],
-            )
-
-            if slot_initial.status != "AVAILABLE":
-                raise serializers.ValidationError({"slot_id": "Slot is not available."})
-
-            services_in = validated_data.get("services", [])
-
-            # todos los servicios deben apuntar al mismo profesional
-            for s in services_in:
-                if s["professional_id"] != professional_id:
-                    raise serializers.ValidationError(
-                        {"services": "All services must be assigned to the selected professional."}
-                    )
-
-            try:
-                total_required_min = compute_total_duration(services_in)
-            except ProfessionalService.DoesNotExist:
-                raise serializers.ValidationError(
-                    {"services": "One or more services are not assigned to the professional or are inactive."}
-                )
-
-            slot_duration_min = int(
-                (slot_initial.end - slot_initial.start).total_seconds() // 60
-            )
-            if slot_duration_min <= 0:
-                raise serializers.ValidationError({"slot_id": "Slot base has zero duration."})
-
-            slots_needed = (total_required_min + slot_duration_min - 1) // slot_duration_min
-            if slots_needed <= 0:
-                slots_needed = 1
-
-            # Busca slots consecutivos
-            slots_to_reserve = [slot_initial]
-            current_slot = slot_initial
-
-            for i in range(1, slots_needed):
-                next_start = current_slot.end
-                try:
-                    next_slot = Slot.objects.select_for_update().get(
-                        professional_id=professional_id,
-                        start=next_start,
-                        status="AVAILABLE",
-                    )
-                except Slot.DoesNotExist:
-                    raise serializers.ValidationError(
-                        {
-                            "services": (
-                                f"Not enough consecutive slots. Required {slots_needed}, "
-                                f"found {i}. Total minutes required: {total_required_min}."
-                            )
-                        }
-                    )
-                slots_to_reserve.append(next_slot)
-                current_slot = next_slot
-
-            # ----------------------------------------------------------
-            # 5) CREAR RESERVA
-            # ----------------------------------------------------------
-            # ----------------------------------------------------------
-            # 5) CREAR RESERVA
-            # ----------------------------------------------------------
-            reservation = Reservation.objects.create(
-                client=client,
-                vehicle=vehicle_obj,
-                address=address_obj,
-                note=validated_data.get("note", ""),
-                status="PENDING",
-                total_min=total_required_min,
-            )
-
-            # ----------------------------------------------------------
-            # 6) MARCAR SLOTS COMO RESERVED
-            # ----------------------------------------------------------
-            for s in slots_to_reserve:
-                s.status = "RESERVED"
-                s.save(update_fields=["status"])
-                ReservationSlot.objects.create(
-                    reservation=reservation,
-                    slot=s,
-                    professional_id=professional_id,
-                )
-
-            # ----------------------------------------------------------
-            # 7) CREAR ReservationService
-            # ----------------------------------------------------------
-            for s in services_in:
-                ps = ProfessionalService.objects.select_related("service").get(
-                    professional_id=s["professional_id"],
-                    service_id=s["service_id"],
-                    active=True,
-                )
-                duration = ps.duration_override_min or ps.service.duration_min
-                ReservationService.objects.create(
-                    reservation=reservation,
-                    service_id=s["service_id"],
-                    professional_id=s["professional_id"],
-                    effective_duration_min=duration,
-                )
-
-            # ----------------------------------------------------------
-            # 8) HISTORIAL DE ESTADO
-            # ----------------------------------------------------------
-            StatusHistory.objects.create(
-                reservation=reservation,
-                status="PENDING",
-                note="Reservation created (Pending Confirmation)",
-            )
-
-            return reservation
+        return create_reservation_transaction(validated_data)
 
 
 # ----------------------------------------------------------------------

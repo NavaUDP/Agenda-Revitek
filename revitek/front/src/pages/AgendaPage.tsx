@@ -1,6 +1,7 @@
 // revitek/front/src/pages/AgendaPage.tsx
 import FullCalendar from '@fullcalendar/react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useContext } from 'react';
+import { AuthContext } from '@/context/AuthContext';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { useOutletContext } from 'react-router-dom';
@@ -8,30 +9,40 @@ import interactionPlugin from '@fullcalendar/interaction';
 import esLocale from '@fullcalendar/core/locales/es';
 import resourceTimeGridPlugin from '@fullcalendar/resource-timegrid';
 import { AdminBookingModal, AdminBookingData } from '@/components/AdminBookingModal';
-import { DateSelectArg, EventApi } from '@fullcalendar/core';
+import { DateSelectArg, EventApi, EventClickArg } from '@fullcalendar/core';
 import { CalendarSidebar } from '../components/CalendarSidebar';
 import { Button } from '@/components/ui/button';
 import { Menu, X } from 'lucide-react';
 import {
-  createReserva,
-  ReservaPayload,
+  createReservation,
+  ReservationPayload,
   createBlock,
   listBlocks,
-  getReserva,
+  getReservation,
   listSlots,
+  ReservationDetailed,
+  SlotBlockData,
 } from '@/api/agenda';
+import { listAllServices } from '@/api/servicios';
 import { toast } from "@/components/ui/use-toast";
 import { ReservaDetailModal } from '@/components/ReservaDetailModal';
 import { BlockDetailModal } from '@/components/BlockDetailModal';
-import http from '@/api/http';
+import { format, addDays, parseISO, differenceInMilliseconds } from 'date-fns';
 
+// Strict types for Context
 type AdminContextType = {
   resources: { id: string; title: string; eventColor?: string; eventBackgroundColor?: string; eventBorderColor?: string; }[];
   setResources: React.Dispatch<React.SetStateAction<{ id: string; title: string; eventColor?: string; eventBackgroundColor?: string; eventBorderColor?: string; }[]>>;
-  events: any[];
+  events: any[]; // Ideally this should be a union of ReservationEvent | BlockEvent
   setEvents: React.Dispatch<React.SetStateAction<any[]>>;
   loading: boolean;
 };
+
+interface ServiceOption {
+  id: number;
+  nombre: string;
+  duracion_min: number;
+}
 
 const AgendaPage = () => {
   const context = useOutletContext<AdminContextType>();
@@ -44,14 +55,31 @@ const AgendaPage = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
   const [localLoading, setLocalLoading] = useState(false);
   const [selectedProfessionalId, setSelectedProfessionalId] = useState<string | null>(null);
+
+  // RBAC: Restrict view for professionals
+  const auth = useContext(AuthContext);
+  const user = auth?.user;
+  const isProfessional = !user?.is_staff && !!user?.professional_id;
+
+  useEffect(() => {
+    if (isProfessional && user?.professional_id) {
+      setSelectedProfessionalId(String(user.professional_id));
+      // Force view to week view or day view as preferred
+      const calendarApi = mainCalendarRef.current?.getApi();
+      if (calendarApi) {
+        calendarApi.changeView('timeGridWeek');
+      }
+    }
+  }, [isProfessional, user, resources]);
+
   const [selectedReservaId, setSelectedReservaId] = useState<number | null>(null);
-  const [reservaDetail, setReservaDetail] = useState<any>(null);
+  const [reservaDetail, setReservaDetail] = useState<ReservationDetailed | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const [availableServices, setAvailableServices] = useState<Array<{ id: number; nombre: string; duracion_min: number }>>([]);
+  const [availableServices, setAvailableServices] = useState<ServiceOption[]>([]);
 
   // Estados para modal de bloqueos
-  const [selectedBlock, setSelectedBlock] = useState<any>(null);
+  const [selectedBlock, setSelectedBlock] = useState<SlotBlockData | null>(null);
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
   const [loadingBlock, setLoadingBlock] = useState(false);
 
@@ -61,10 +89,9 @@ const AgendaPage = () => {
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        // Backend expone /catalog/services/ (sin /api)
-        const { data } = await http.get('/catalog/services/');
+        const services = await listAllServices();
         setAvailableServices(
-          data.map((s: any) => ({
+          services.map((s) => ({
             id: s.id,
             nombre: s.name,
             duracion_min: s.duration_min,
@@ -72,6 +99,11 @@ const AgendaPage = () => {
         );
       } catch (error) {
         console.error('Error loading services:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "No se pudieron cargar los servicios.",
+        });
       }
     };
     fetchServices();
@@ -91,10 +123,12 @@ const AgendaPage = () => {
   // ---------------------------
   // CLICK EN EVENTO (reserva o bloqueo)
   // ---------------------------
-  const handleEventClick = async (info: any) => {
+  const handleEventClick = async (info: EventClickArg) => {
+    const { extendedProps, id } = info.event;
+
     // Bloqueo
-    if (info.event.extendedProps.type === 'blocked') {
-      const blockId = info.event.extendedProps.blockId;
+    if (extendedProps.type === 'blocked') {
+      const blockId = extendedProps.blockId;
       if (!blockId) {
         console.error('ID de bloqueo inválido');
         return;
@@ -105,7 +139,7 @@ const AgendaPage = () => {
 
       try {
         const blocks = await listBlocks();
-        const blockDetail = blocks.find((b: any) => b.id === blockId);
+        const blockDetail = blocks.find((b) => b.id === blockId);
 
         if (blockDetail) {
           setSelectedBlock(blockDetail);
@@ -125,7 +159,7 @@ const AgendaPage = () => {
       }
     } else {
       // Reserva
-      const reservaId = parseInt(info.event.id, 10);
+      const reservaId = parseInt(id, 10);
       if (isNaN(reservaId)) {
         console.error('ID de reserva inválido');
         return;
@@ -136,7 +170,7 @@ const AgendaPage = () => {
       setLoadingDetail(true);
 
       try {
-        const detail = await getReserva(reservaId);
+        const detail = await getReservation(reservaId);
         setReservaDetail(detail);
       } catch (error) {
         console.error('Error al cargar detalle de reserva:', error);
@@ -164,11 +198,15 @@ const AgendaPage = () => {
   };
 
   const handleRefreshCalendar = async () => {
-    try {
-      window.location.reload();
-    } catch (error) {
-      console.error('Error refrescando calendario:', error);
-    }
+    // Ideally, we should trigger a refetch in the parent context
+    // For now, we can just reload the page as a fallback if context doesn't support refresh
+    // Or better, we can just rely on the fact that modals update the state?
+    // The previous implementation used window.location.reload(), which is heavy-handed.
+    // Let's try to avoid it if possible, but since `events` come from context, we might need to reload to be safe.
+    // A better approach would be to expose a refresh function in context.
+    // For this refactor, I will keep reload but wrap it in a try-catch to be safe, 
+    // or if I can, I'd suggest adding a refresh capability to the context in a future step.
+    window.location.reload();
   };
 
   const handleDateSelectSidebar = (date: Date) => {
@@ -215,173 +253,19 @@ const AgendaPage = () => {
         throw new Error("ID de profesional inválido.");
       }
 
-      // ---- BLOQUEO ----
       if (data.type === 'blocked') {
-        if (data.aplicar_a_rango && data.fecha_fin) {
-          // Bloqueo en rango de días
-          const fechaInicio = new Date(data.fecha);
-          const fechaFin = new Date(data.fecha_fin);
-          const bloqueosCreados: any[] = [];
-
-          for (
-            let currentDate = new Date(fechaInicio);
-            currentDate <= fechaFin;
-            currentDate.setDate(currentDate.getDate() + 1)
-          ) {
-            const fechaStr = currentDate.toISOString().split('T')[0];
-            const inicioISO = `${fechaStr}T${data.hora_inicio}:00`;
-            const finISO = `${fechaStr}T${data.hora_fin}:00`;
-
-            try {
-              const blockResponse = await createBlock({
-                professional: professionalId,
-                date: fechaStr,
-                start: inicioISO,
-                end: finISO,
-                reason: data.razonBloqueo,
-              });
-
-              bloqueosCreados.push(blockResponse);
-
-              const newBlockedEvent = {
-                id: `block_${blockResponse.id}`,
-                title: `🚫 ${data.razonBloqueo || 'Bloqueado'}`,
-                start: inicioISO,
-                end: finISO,
-                resourceId: selectionInfo.resource.id,
-                backgroundColor: '#ef4444',
-                borderColor: '#dc2626',
-                extendedProps: {
-                  type: 'blocked',
-                  blockId: blockResponse.id,
-                  razon: data.razonBloqueo,
-                },
-              };
-              setEvents(prevEvents => [...prevEvents, newBlockedEvent]);
-            } catch (error) {
-              console.error(`Error bloqueando fecha ${fechaStr}:`, error);
-            }
-          }
-
-          const diasBloqueados = bloqueosCreados.length;
-          toast({
-            title: "Horarios Bloqueados",
-            description: `${diasBloqueados} día${diasBloqueados !== 1 ? 's' : ''} bloqueado${diasBloqueados !== 1 ? 's' : ''} exitosamente (${new Date(data.fecha).toLocaleDateString('es-CL')} - ${new Date(data.fecha_fin).toLocaleDateString('es-CL')})`,
-          });
-        } else {
-          // Bloqueo en un solo día
-          const inicioISO = `${data.fecha}T${data.hora_inicio}:00`;
-          const finISO = `${data.fecha}T${data.hora_fin}:00`;
-
-          const blockResponse = await createBlock({
-            professional: professionalId,
-            date: data.fecha,
-            start: inicioISO,
-            end: finISO,
-            reason: data.razonBloqueo,
-          });
-
-          toast({
-            title: "Horario Bloqueado",
-            description: `Bloqueo creado exitosamente.`,
-          });
-
-          const newBlockedEvent = {
-            id: `block_${blockResponse.id}`,
-            title: `🚫 ${data.razonBloqueo || 'Bloqueado'}`,
-            start: inicioISO,
-            end: finISO,
-            resourceId: selectionInfo.resource.id,
-            backgroundColor: '#ef4444',
-            borderColor: '#dc2626',
-            extendedProps: {
-              type: 'blocked',
-              blockId: blockResponse.id,
-              razon: data.razonBloqueo,
-            },
-          };
-          setEvents(prevEvents => [...prevEvents, newBlockedEvent]);
-        }
-
+        await handleCreateBlock(data, professionalId);
       } else {
-        // ---- RESERVA ----
-        if (!data.servicios || data.servicios.length === 0) {
-          throw new Error("Debes seleccionar al menos un servicio.");
-        }
-
-        // Construir inicio/fin ISO
-        const inicioISO = `${data.fecha}T${data.hora_inicio}:00`;
-        const finISO = `${data.fecha}T${data.hora_fin}:00`;
-
-        // Buscar slot que coincide con el inicio seleccionado
-        const startTime = new Date(inicioISO);
-        const slotId = await findMatchingSlotId(professionalId, startTime);
-
-        if (!slotId) {
-          throw new Error(
-            `No se encontró un slot disponible para ${selectionInfo.resource.title} en el horario seleccionado.`
-          );
-        }
-
-        // Mapear AdminBookingData → ReservaPayload del backend nuevo
-        const payload: ReservaPayload = {
-          professional_id: professionalId,
-          client: {
-            first_name: data.cliente!.nombre,
-            last_name: data.cliente!.apellido,
-            email: data.cliente!.email,
-            phone: data.cliente!.telefono,
-          },
-          vehicle: data.vehiculo
-            ? {
-              license_plate: data.vehiculo.patente,
-              brand: data.vehiculo.marca,
-              model: data.vehiculo.modelo,
-              year: data.vehiculo.year,
-            }
-            : undefined,
-          // Address: por ahora la dejamos fuera porque el backend espera commune_id (entero).
-          // Si luego conectas con catálogo de comunas, aquí se mapea.
-          services: data.servicios.map((sid) => ({
-            service_id: sid,
-            professional_id: professionalId,
-          })),
-          slot_id: slotId,
-          note: data.nota || '',
-        };
-
-        const nuevaReserva = await createReserva(payload);
-
-        const newEvent = {
-          id: String(nuevaReserva.id),
-          title: `${data.cliente?.nombre} ${data.cliente?.apellido}`,
-          start: inicioISO,
-          end: finISO,
-          resourceId: selectionInfo.resource.id,
-          backgroundColor: resources.find(r => r.id === selectionInfo.resource?.id)?.eventBackgroundColor || '#3b82f6',
-          borderColor: resources.find(r => r.id === selectionInfo.resource?.id)?.eventBorderColor || '#3b82f6',
-          extendedProps: {
-            type: 'appointment',
-            client: `${data.cliente?.nombre} ${data.cliente?.apellido}`,
-            reservaId: nuevaReserva.id,
-          },
-        };
-        setEvents(prevEvents => [...prevEvents, newEvent]);
-        toast({
-          title: "Cita Creada",
-          description: `Reserva #${nuevaReserva.id} creada exitosamente.`,
-        });
+        await handleCreateReservation(data, professionalId);
       }
 
     } catch (error: any) {
       console.error("Error en operación:", error);
-      const errorMsg = error?.response?.data
-        ? JSON.stringify(error.response.data)
-        : error.message;
+      const errorMsg = error?.response?.data?.detail || error?.message || "Error desconocido";
       toast({
         variant: "destructive",
         title: data.type === 'blocked' ? "Error al bloquear" : "Error al crear cita",
-        description: errorMsg,
+        description: typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg),
       });
     } finally {
       setLocalLoading(false);
@@ -389,17 +273,165 @@ const AgendaPage = () => {
     }
   };
 
+  const handleCreateBlock = async (data: AdminBookingData, professionalId: number) => {
+    if (!selectionInfo?.resource) return;
+
+    if (data.aplicar_a_rango && data.fecha_fin) {
+      // Bloqueo en rango de días
+      const fechaInicio = new Date(data.fecha);
+      const fechaFin = new Date(data.fecha_fin);
+      const bloqueosCreados: SlotBlockData[] = [];
+
+      let currentDateIter = fechaInicio;
+      while (currentDateIter <= fechaFin) {
+        const fechaStr = format(currentDateIter, 'yyyy-MM-dd');
+        const inicioISO = `${fechaStr}T${data.hora_inicio}:00`;
+        const finISO = `${fechaStr}T${data.hora_fin}:00`;
+
+        try {
+          const blockResponse = await createBlock({
+            professional: professionalId,
+            date: fechaStr,
+            start: inicioISO,
+            end: finISO,
+            reason: data.razonBloqueo,
+          });
+
+          bloqueosCreados.push(blockResponse);
+          addBlockEventToCalendar(blockResponse, selectionInfo.resource.id, data.razonBloqueo, inicioISO, finISO);
+        } catch (error) {
+          console.error(`Error bloqueando fecha ${fechaStr}:`, error);
+        }
+        currentDateIter = addDays(currentDateIter, 1);
+      }
+
+      const diasBloqueados = bloqueosCreados.length;
+      toast({
+        title: "Horarios Bloqueados",
+        description: `${diasBloqueados} día(s) bloqueado(s) exitosamente.`,
+      });
+
+    } else {
+      // Bloqueo en un solo día
+      const inicioISO = `${data.fecha}T${data.hora_inicio}:00`;
+      const finISO = `${data.fecha}T${data.hora_fin}:00`;
+
+      const blockResponse = await createBlock({
+        professional: professionalId,
+        date: data.fecha,
+        start: inicioISO,
+        end: finISO,
+        reason: data.razonBloqueo,
+      });
+
+      addBlockEventToCalendar(blockResponse, selectionInfo.resource.id, data.razonBloqueo, inicioISO, finISO);
+
+      toast({
+        title: "Horario Bloqueado",
+        description: `Bloqueo creado exitosamente.`,
+      });
+    }
+  };
+
+  const addBlockEventToCalendar = (block: SlotBlockData, resourceId: string, reason: string | undefined, start: string, end: string) => {
+    const newBlockedEvent = {
+      id: `block_${block.id}`,
+      title: `🚫 ${reason || 'Bloqueado'}`,
+      start: start,
+      end: end,
+      resourceId: resourceId,
+      backgroundColor: '#ef4444',
+      borderColor: '#dc2626',
+      extendedProps: {
+        type: 'blocked',
+        blockId: block.id,
+        razon: reason,
+      },
+    };
+    setEvents(prevEvents => [...prevEvents, newBlockedEvent]);
+  };
+
+  const handleCreateReservation = async (data: AdminBookingData, professionalId: number) => {
+    if (!selectionInfo?.resource) return;
+
+    if (!data.servicios || data.servicios.length === 0) {
+      throw new Error("Debes seleccionar al menos un servicio.");
+    }
+
+    // Construir inicio/fin ISO
+    const inicioISO = `${data.fecha}T${data.hora_inicio}:00`;
+    const finISO = `${data.fecha}T${data.hora_fin}:00`;
+
+    // Buscar slot que coincide con el inicio seleccionado
+    const startTime = parseISO(inicioISO);
+    const slotId = await findMatchingSlotId(professionalId, startTime);
+
+    if (!slotId) {
+      throw new Error(
+        `No se encontró un slot disponible para ${selectionInfo.resource.title} en el horario seleccionado.`
+      );
+    }
+
+    // Mapear AdminBookingData → ReservaPayload del backend nuevo
+    const payload: ReservationPayload = {
+      professional_id: professionalId,
+      client: {
+        first_name: data.cliente!.nombre,
+        last_name: data.cliente!.apellido,
+        email: data.cliente!.email,
+        phone: data.cliente!.telefono,
+      },
+      vehicle: data.vehiculo
+        ? {
+          license_plate: data.vehiculo.patente,
+          brand: data.vehiculo.marca,
+          model: data.vehiculo.modelo,
+          year: data.vehiculo.year,
+        }
+        : undefined,
+      services: data.servicios.map((sid) => ({
+        service_id: sid,
+        professional_id: professionalId,
+      })),
+      slot_id: slotId,
+      note: data.nota || '',
+    };
+
+    const nuevaReserva = await createReservation(payload);
+
+    const newEvent = {
+      id: String(nuevaReserva.id),
+      title: `${data.cliente?.nombre} ${data.cliente?.apellido}`,
+      start: inicioISO,
+      end: finISO,
+      resourceId: selectionInfo.resource.id,
+      backgroundColor: resources.find(r => r.id === selectionInfo.resource?.id)?.eventBackgroundColor || '#3b82f6',
+      borderColor: resources.find(r => r.id === selectionInfo.resource?.id)?.eventBorderColor || '#3b82f6',
+      extendedProps: {
+        type: 'appointment',
+        client: `${data.cliente?.nombre} ${data.cliente?.apellido}`,
+        reservaId: nuevaReserva.id,
+      },
+    };
+    setEvents(prevEvents => [...prevEvents, newEvent]);
+    toast({
+      title: "Cita Creada",
+      description: `Reserva #${nuevaReserva.id} creada exitosamente.`,
+    });
+  };
+
   // ---------------------------
   // Buscar slot que coincide con fecha/hora
   // ---------------------------
   async function findMatchingSlotId(profId: number, startTime: Date): Promise<number | null> {
     try {
-      const fecha = startTime.toISOString().split('T')[0];
+      const fecha = format(startTime, 'yyyy-MM-dd');
       const slots = await listSlots({ professionalId: profId, date: fecha });
 
-      const matchingSlot = (slots || []).find((slot: any) => {
-        const slotStart = new Date(slot.start);
-        const diff = Math.abs(slotStart.getTime() - startTime.getTime());
+      const matchingSlot = (slots || []).find((slot) => {
+        const slotStart = parseISO(slot.start); // Assuming slot.start is ISO string
+        // Use date-fns difference
+        const diff = Math.abs(differenceInMilliseconds(slotStart, startTime));
         return diff < 60000 && slot.status === 'AVAILABLE';
       });
 
@@ -423,7 +455,7 @@ const AgendaPage = () => {
   return (
     <div className="flex h-[calc(100vh-4rem)] admin-calendar">
       <aside
-        className={`transition-all duration-300 ease-in-out bg-card border-r border-border flex-shrink-0 overflow-hidden ${isSidebarOpen ? 'w-72' : 'w-0'
+        className={`transition-all duration-300 ease-in-out bg-card border-r border-border flex-shrink-0 overflow-hidden ${isSidebarOpen && !isProfessional ? 'w-72' : 'w-0'
           }`}
       >
         <div className="w-72 h-full">
@@ -437,14 +469,16 @@ const AgendaPage = () => {
       </aside>
 
       <main className="flex-1 p-4 md:p-6 h-full overflow-y-auto relative bg-background">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-4 left-4 z-30 bg-card hover:bg-muted"
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        >
-          {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
+        {!isProfessional && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 left-4 z-30 bg-card hover:bg-muted"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          >
+            {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        )}
 
         <div className="bg-card p-2 sm:p-4 rounded-lg shadow-sm h-full mt-10 md:mt-0">
           {initialLoading && <p className="text-center p-10">Cargando profesionales...</p>}

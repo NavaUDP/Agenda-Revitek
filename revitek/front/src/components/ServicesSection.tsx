@@ -1,86 +1,49 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import ServiceCard from "./ServiceCard";
+import { listAllServices } from "@/api/servicios";
+import { Service } from "@/types/services";
+import { Button } from "@/components/ui/button";
+
+// Images
 import servicioPrt from "@/assets/servicio-prt.jpg";
 import trasladoVehiculo from "@/assets/traslado-vehiculo.jpg";
 import lavadoAspirado from "@/assets/lavado-aspirado.jpg";
 import grabadoVidrios from "@/assets/grabado-vidrios.jpg";
 import pulidoFocos from "@/assets/pulido-focos.jpg";
 import mantencionKm from "@/assets/mantencion-km.jpg";
+import heroBg from "@/assets/hero-bg.jpg"; // Fallback
 
 const ServicesSection = () => {
-  const services = [
-    {
-      title: "SERVICIO DE REVISIÓN TÉCNICA CON RETIRO EN DOMICILIO",
-      description: "Servicio completo de revisión técnica vehicular",
-      features: [
-        "Retiramos el vehículo en tu domicilio",
-        "Lo llevamos a la PRT",
-        "Podrás ver dónde está tu vehículo en vivo",
-        "Lo retornamos con documentos plastificados"
-      ],
-      image: servicioPrt,
-      link: "https://revitek.site.agendapro.com/cl"
-    },
-    {
-      title: "TRASLADO DE VEHICULO",
-      description: "Servicio de traslado seguro de vehículos",
-      features: [
-        "Vamos al domicilio por tu vehículo",
-        "Se revisa completo y lo trasladamos andando",
-        "A donde quieras",
-        "Precio según distancia"
-      ],
-      image: trasladoVehiculo,
-      link: "https://api.whatsapp.com/send/?phone=56922486301"
-    },
-    {
-      title: "LAVADO Y ASPIRADO",
-      description: "Servicio completo de lavado vehicular",
-      features: [
-        "Retiramos a domicilio tu vehículo",
-        "Lo llevamos a nuestro centro de lavado",
-        "LAVADO, ASPIRADO, SECADO Y ENCERADO",
-        "Podrás ver dónde está tu vehículo"
-      ],
-      image: lavadoAspirado,
-      link: "https://api.whatsapp.com/send/?phone=56922486301"
-    },
-    {
-      title: "GRABADO DE VIDRIOS",
-      description: "Grabado de patentes en vidrios del vehículo",
-      features: [
-        "Retiramos a domicilio tu auto",
-        "Grabamos las patentes en todos los vidrios",
-        "Se devuelve con el servicio realizado",
-        "SE GRABAN CON ÁCIDO"
-      ],
-      image: grabadoVidrios,
-      link: "https://api.whatsapp.com/send/?phone=56922486301"
-    },
-    {
-      title: "PULIDO DE FOCOS",
-      description: "Restauración de focos opacos",
-      features: [
-        "Vamos a tu domicilio",
-        "Vemos el estado de los focos del vehículo",
-        "Procedemos al pulido y aclarado",
-        "De las micas de los focos"
-      ],
-      image: pulidoFocos,
-      link: "https://api.whatsapp.com/send/?phone=56922486301"
-    },
-    {
-      title: "MANTENCIÓN POR KM",
-      description: "Mantención programada según kilometraje",
-      features: [
-        "Cotiza con nosotros la mantención",
-        "De tu vehículo por km",
-        "Servicio profesional",
-        "Repuestos de calidad"
-      ],
-      image: mantencionKm,
-      link: "https://api.whatsapp.com/send/?phone=56922486301"
-    }
-  ];
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    listAllServices()
+      .then((data) => {
+        // Filter only active services if needed, though backend might already do it or we want all.
+        // Let's assume we want active ones.
+        setServices(data.filter(s => s.active !== false));
+      })
+      .catch((err) => console.error("Error loading services:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Helper to assign images based on service name (simple heuristic)
+  const getImageForService = (name: string) => {
+    const lower = name.toLowerCase();
+    if (lower.includes("revisión") || lower.includes("prt")) return servicioPrt;
+    if (lower.includes("traslado")) return trasladoVehiculo;
+    if (lower.includes("lavado")) return lavadoAspirado;
+    if (lower.includes("grabado")) return grabadoVidrios;
+    if (lower.includes("foco") || lower.includes("pulido")) return pulidoFocos;
+    if (lower.includes("mantención") || lower.includes("km")) return mantencionKm;
+    return heroBg;
+  };
+
+  if (loading) {
+    return <div className="py-20 text-center">Cargando servicios...</div>;
+  }
 
   return (
     <section className="py-20 bg-muted/30">
@@ -90,17 +53,30 @@ const ServicesSection = () => {
             NUESTROS SERVICIOS
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Ofrecemos servicios automotrices de calidad con retiro y entrega a domicilio. 
+            Ofrecemos servicios automotrices de calidad con retiro y entrega a domicilio.
             Tu vehículo en las mejores manos.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {services.map((service, index) => (
-            <div key={index} className="animate-slide-up" style={{ animationDelay: `${index * 0.1}s` }}>
-              <ServiceCard {...service} />
+            <div key={service.id} className="animate-slide-up" style={{ animationDelay: `${index * 0.1}s` }}>
+              <ServiceCard
+                title={service.name}
+                description={service.description || "Servicio profesional garantizado."}
+                features={[]} // Backend doesn't provide features list yet, maybe parse description?
+                image={getImageForService(service.name)}
+                // We pass the internal link path instead of an external URL
+                link={`/agendar?service_id=${service.id}`}
+              />
             </div>
           ))}
+        </div>
+
+        <div className="mt-12 text-center">
+          <Button asChild size="lg" className="font-bold text-lg">
+            <Link to="/agendar">Ver todos los servicios</Link>
+          </Button>
         </div>
       </div>
     </section>

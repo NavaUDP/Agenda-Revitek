@@ -1,31 +1,27 @@
-// client/src/context/AuthProvider.tsx
-
-import { createContext, useState, ReactNode, useEffect, useContext } from 'react';
-import axios from 'axios';
+import { createContext, useState, useEffect } from 'react';
 import http from '../api/http';
 import { jwtDecode } from 'jwt-decode';
 import { toast } from "sonner";
 
-// --- 1. Definimos los nuevos tipos ---
-
-// Esto debe coincidir con el payload (datos) que pusiste en tu token en Django
-type JwtPayload = {
+// Define the JWT Payload structure
+interface JwtPayload {
   user_id: number;
   nombre: string;
   email: string;
   is_staff: boolean;
-  exp: number; // Timestamp de expiración
+  professional_id?: number;
+  exp?: number;
 }
 
-// Este será el objeto 'user' que usará tu app
-type User = {
+// User object used in the app
+export interface User {
   id: number;
   nombre: string;
   email: string;
   is_staff: boolean;
+  professional_id?: number;
 }
 
-// Actualizamos el tipo del Contexto
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
@@ -33,66 +29,58 @@ interface AuthContextType {
   refreshToken: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  isLoading: boolean; // <-- 3. Este estado ahora es para la carga inicial
+  isLoading: boolean;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
-// --- 2. El Provider actualizado ---
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-
-  // --- 2. Cambiar isLoading a 'true' por defecto ---
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // --- 4. Añadir este useEffect para hidratar el estado ---
+  // Hydrate state from localStorage on mount
   useEffect(() => {
-    // Esta función se ejecuta solo una vez cuando la app carga
     try {
       const storedAccess = localStorage.getItem('access_token');
       const storedRefresh = localStorage.getItem('refresh_token');
       const storedUser = localStorage.getItem('user');
 
-      if (storedAccess) {
-        setAccessToken(storedAccess);
-      }
-      if (storedRefresh) {
-        setRefreshToken(storedRefresh);
-      }
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-      }
+      if (storedAccess) setAccessToken(storedAccess);
+      if (storedRefresh) setRefreshToken(storedRefresh);
+      if (storedUser) setUser(JSON.parse(storedUser));
     } catch (error) {
-      console.error("Error al leer localStorage", error);
+      console.error("Error reading from localStorage", error);
     } finally {
-      // (Importante) Hemos terminado de cargar, 
-      // sepamos o no si los tokens son válidos.
       setIsLoading(false);
     }
-  }, []); // El array vacío asegura que se ejecute solo al montar
+  }, []);
 
   const isAuthenticated = !!accessToken;
 
   const login = async (email: string, password: string) => {
-    // --- 5. Quitar setIsLoading(true) de aquí ---
-    // setIsLoading(true); // (Ya no se necesita para la acción de login)
     try {
       const { data } = await http.post('/api/auth/token/', { email, password });
-      setAccessToken(data.access);
-      setRefreshToken(data.refresh);
-      localStorage.setItem('access_token', data.access);
-      localStorage.setItem('refresh_token', data.refresh);
 
-      // Decodificar el JWT para obtener la información del usuario
-      const decoded: any = jwtDecode(data.access);
+      const newAccessToken = data.access;
+      const newRefreshToken = data.refresh;
+
+      setAccessToken(newAccessToken);
+      setRefreshToken(newRefreshToken);
+      localStorage.setItem('access_token', newAccessToken);
+      localStorage.setItem('refresh_token', newRefreshToken);
+
+      const decoded = jwtDecode<JwtPayload>(newAccessToken);
+
       const userData: User = {
         id: decoded.user_id,
         nombre: decoded.nombre,
         email: decoded.email,
         is_staff: decoded.is_staff,
+        professional_id: decoded.professional_id,
       };
+
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
       toast.success(`Bienvenido, ${userData.nombre}`);
@@ -100,9 +88,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.error("Login error:", error);
       toast.error('Error al iniciar sesión. Verifica tus credenciales.');
       throw error;
-    } finally {
-      // --- 6. Quitar setIsLoading(false) de aquí ---
-      // setIsLoading(false);
     }
   };
 

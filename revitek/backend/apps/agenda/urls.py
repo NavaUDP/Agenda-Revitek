@@ -7,10 +7,7 @@ from .views import (
     generate_slots,
     cancel_reservation_view,
     confirm_reservation_via_link,
-    list_blocks,
-    create_block,
-    update_block,
-    delete_block,
+    SlotBlockViewSet,
     ProfessionalViewSet,
     ProfessionalServiceViewSet,
     WorkScheduleViewSet,
@@ -27,6 +24,7 @@ router.register(r"work-schedules", WorkScheduleViewSet, basename="work-schedule"
 router.register(r"breaks", BreakViewSet, basename="break")
 router.register(r"exceptions", ScheduleExceptionViewSet, basename="schedule-exception")
 router.register(r"reservations", ReservationViewSet, basename="reservation")
+router.register(r"blocks", SlotBlockViewSet, basename="slot-block")
 
 urlpatterns = [
     # ViewSet URLs
@@ -42,10 +40,11 @@ urlpatterns = [
     path("reservations/<int:pk>/cancel/", cancel_reservation_view, name="cancel-reservation"),
 
     # Slot blocks (admin)
-    path("blocks/", list_blocks, name="list-blocks"),
-    path("blocks/create/", create_block, name="create-block"),
-    path("blocks/<int:pk>/update/", update_block, name="update-block"),
-    path("blocks/<int:pk>/delete/", delete_block, name="delete-block"),
+    # Slot blocks (admin) - Now via ViewSet at /api/agenda/blocks/
+    # path("blocks/", list_blocks, name="list-blocks"),
+    # path("blocks/create/", create_block, name="create-block"),
+    # path("blocks/<int:pk>/update/", update_block, name="update-block"),
+    # path("blocks/<int:pk>/delete/", delete_block, name="delete-block"),
     path("availability/", aggregated_availability, name="aggregated-availability"),
     
     # Public: WhatsApp confirmation
