@@ -1,0 +1,17 @@
+{% extends "email_service/base_email.html" %}
+
+{% block title %}{{ titulo|default:"Novedades Revitek" }}{% endblock %}
+
+{% block content %}
+<h2>{{ titulo }}</h2>
+
+{% if imagen_url %}
+<img src="{{ imagen_url }}" alt="Promoción" style="max-width: 100%; border-radius: 5px; margin-bottom: 15px;">
+{% endif %}
+
+<p>{{ mensaje|linebreaks }}</p>
+
+{% if boton_texto and boton_url %}
+<a href="{{ boton_url }}" class="button">{{ boton_texto }}</a>
+{% endif %}
+{% endblock %}

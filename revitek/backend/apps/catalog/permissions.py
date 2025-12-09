@@ -2,7 +2,7 @@ from rest_framework import permissions
 
 class IsAdminOrReadOnly(permissions.BasePermission):
     """
-    The request is authenticated as a user, or is a read-only request.
+    La solicitud está autenticada como un usuario, o es una solicitud de solo lectura.
     """
     def has_permission(self, request, view):
         return (

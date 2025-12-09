@@ -53,7 +53,7 @@ class ProfessionalSerializer(serializers.ModelSerializer):
 
 class ProfessionalAdminSerializer(ProfessionalSerializer):
     """
-    Serializer for admins that includes user account details.
+    Serializador para administradores que incluye detalles de la cuenta de usuario.
     """
     has_user = serializers.SerializerMethodField()
     user_email = serializers.SerializerMethodField()
@@ -293,7 +293,7 @@ class ReservationDetailSerializer(serializers.ModelSerializer):
 
     def get_address(self, obj):
         addr = obj.address
-        # Fallback for legacy reservations: if no address linked, but client has exactly one, use it.
+        # Respaldo para reservas antiguas: si no hay dirección vinculada, pero el cliente tiene exactamente una, usarla.
         if not addr and obj.client:
             client_addresses = obj.client.addresses.select_related("commune__region").all()
             if client_addresses.count() == 1:
@@ -315,7 +315,7 @@ class ReservationDetailSerializer(serializers.ModelSerializer):
 
     def get_vehicle(self, obj):
         veh = obj.vehicle
-        # Fallback for legacy reservations: if no vehicle linked, but client has exactly one, use it.
+        # Respaldo para reservas antiguas: si no hay vehículo vinculado, pero el cliente tiene exactamente uno, usarlo.
         if not veh and obj.client:
             client_vehicles = obj.client.vehicles.all()
             if client_vehicles.count() == 1:
@@ -365,6 +365,13 @@ class ReservationDetailSerializer(serializers.ModelSerializer):
 
 
 class StatusHistorySerializer(serializers.ModelSerializer):
+    client_name = serializers.SerializerMethodField()
+    
     class Meta:
         model = StatusHistory
-        fields = ["status", "timestamp", "note"]
+        fields = ["id", "reservation", "status", "timestamp", "note", "client_name"]
+
+    def get_client_name(self, obj):
+        if obj.reservation.client:
+            return f"{obj.reservation.client.first_name} {obj.reservation.client.last_name}".strip()
+        return "Cliente Desconocido"

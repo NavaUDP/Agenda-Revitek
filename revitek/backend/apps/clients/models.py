@@ -93,7 +93,7 @@ class User(AbstractUser):
     objects = CustomUserManager()
 
     def save(self, *args, **kwargs):
-        # Normalize phone
+        # Normalizar teléfono
         if self.phone:
             self.phone = normalize_phone(self.phone)
         super().save(*args, **kwargs)

@@ -3,8 +3,8 @@ from django.conf import settings
 
 def verify_recaptcha(token: str) -> bool:
     """
-    Verify reCAPTCHA v3 token with Google.
-    Returns True if verification succeeds and score > 0.5
+    Verificar token de reCAPTCHA v3 con Google.
+    Devuelve True si la verificación es exitosa y el puntaje > 0.5
     """
     print(f"🔍 Verificando reCAPTCHA... Token recibido: {token[:20] if token else 'None'}...")
     
@@ -14,7 +14,7 @@ def verify_recaptcha(token: str) -> bool:
     
     secret_key = getattr(settings, 'RECAPTCHA_SECRET_KEY', None)
     if not secret_key:
-        # If not configured, allow (for development)
+        # Si no está configurado, permitir (para desarrollo)
         return True
     
     try:
@@ -28,11 +28,11 @@ def verify_recaptcha(token: str) -> bool:
         )
         result = response.json()
         
-        # Check if verification succeeded and score is acceptable
+        # Verificar si la verificación fue exitosa y el puntaje es aceptable
         success = result.get('success', False)
         score = result.get('score', 0.0)
         
-        # Log for debugging
+        # Registrar para depuración
         if not success:
             print(f"❌ reCAPTCHA verification failed: {result.get('error-codes')}")
         elif score < 0.5:
@@ -43,5 +43,5 @@ def verify_recaptcha(token: str) -> bool:
         return success and score >= 0.5
     except Exception as e:
         print(f"reCAPTCHA verification error: {e}")
-        # In case of API error, allow (fail-open for better UX)
+        # En caso de error de API, permitir (fail-open para mejor UX)
         return True

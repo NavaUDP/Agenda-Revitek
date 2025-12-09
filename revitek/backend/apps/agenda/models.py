@@ -38,17 +38,17 @@ class Professional(models.Model):
         ordering = ["first_name", "last_name"]
 
     def save(self, *args, **kwargs):
-        # Normalize phone number
+        # Normalizar número de teléfono
         if self.phone:
             import re
-            # Remove all non-digit characters
+            # Eliminar caracteres no numéricos
             clean_phone = re.sub(r'\D', '', str(self.phone))
             
-            # If it's a Chilean number (9 digits), ensure it starts with 56
+            # Si es un número chileno (9 dígitos), asegurar que comience con 56
             if len(clean_phone) == 9 and clean_phone.startswith('9'):
                 clean_phone = '56' + clean_phone
             elif len(clean_phone) == 8 and not clean_phone.startswith('56'):
-                 # Handle cases where user might enter 91234567 (8 digits) - though less common
+                 # Manejar casos donde el usuario ingrese 91234567 (8 dígitos), aunque es menos común
                  clean_phone = '569' + clean_phone
             
             self.phone = clean_phone
@@ -77,7 +77,7 @@ class ProfessionalService(models.Model):
     duration_override_min = models.PositiveIntegerField(
         null=True,
         blank=True,
-        help_text="Optional: overrides default service duration.",
+        help_text="Opcional: anula la duración predeterminada del servicio.",
     )
     active = models.BooleanField(default=True)
 
@@ -294,19 +294,22 @@ class Reservation(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    # WhatsApp Confirmation Token (for link-based confirmation)
+    # Token de confirmación de WhatsApp (para confirmación basada en enlace)
     confirmation_token = models.UUIDField(
         default=None,
         null=True,
         blank=True,
         unique=True,
-        help_text="Unique token for WhatsApp confirmation link"
+        help_text="Token único para el enlace de confirmación de WhatsApp"
     )
     token_expires_at = models.DateTimeField(
         null=True,
         blank=True,
-        help_text="Expiration time for confirmation token (2 hours from generation)"
+        help_text="Tiempo de expiración del token de confirmación (2 horas desde su generación)"
     )
+
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completion_note = models.TextField(blank=True, default="")
 
     class Meta:
         ordering = ["-created_at"]

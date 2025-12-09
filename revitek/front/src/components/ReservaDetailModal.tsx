@@ -7,7 +7,10 @@ import { User, Car, MapPin, Calendar, Clock, FileText, X } from "lucide-react";
 import { useState } from "react";
 import { cancelReservation, updateReservationStatus, ReservationDetailed } from "@/api/agenda";
 import { toast } from "sonner";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, CheckSquare } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { completeReservation } from "@/api/agenda";
 
 interface ReservaDetailModalProps {
   isOpen: boolean;
@@ -22,6 +25,11 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
   const [isConfirming, setIsConfirming] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [cancelledReserva, setCancelledReserva] = useState<any>(null);
+
+  // Completion states
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [completionNote, setCompletionNote] = useState("");
 
   if (!reserva) return null;
 
@@ -94,6 +102,27 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
       toast.error('Error al cancelar la reserva. Por favor intenta de nuevo.');
     } finally {
       setIsCancelling(false);
+    }
+  };
+
+  const handleCompleteClick = () => {
+    setShowCompleteDialog(true);
+  };
+
+  const handleConfirmComplete = async () => {
+    setIsCompleting(true);
+    try {
+      await completeReservation(reserva.id, completionNote);
+      toast.success('Reserva completada exitosamente');
+      setShowCompleteDialog(false);
+
+      if (onRefreshCalendar) onRefreshCalendar();
+      onClose();
+    } catch (error: any) {
+      console.error('Error completando reserva:', error);
+      toast.error(error.response?.data?.detail || 'Error al completar la reserva.');
+    } finally {
+      setIsCompleting(false);
     }
   };
 
@@ -371,6 +400,17 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
               </Button>
             )}
 
+            {/* Botón Completar */}
+            {['CONFIRMED', 'IN_PROGRESS', 'RECONFIRMED', 'WAITING_CLIENT'].includes(reserva.status) && (
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={handleCompleteClick}
+                disabled={isConfirming || isCancelling || isCompleting}
+              >
+                <CheckSquare className="mr-2 h-4 w-4" /> Completar
+              </Button>
+            )}
+
             {reserva.status !== 'CANCELLED' && (
               <Button
                 variant="destructive"
@@ -414,6 +454,46 @@ export const ReservaDetailModal = ({ isOpen, onClose, reserva, onCancelSuccess, 
               disabled={isCancelling}
             >
               {isCancelling ? 'Cancelando...' : 'Sí, cancelar reserva'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Completar */}
+      <Dialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Completar Reserva</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Estás a punto de marcar la reserva #{reserva.id} como completada.
+              Puedes añadir una nota opcional.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="completion-note">Nota de cierre (Opcional)</Label>
+              <Textarea
+                id="completion-note"
+                placeholder="Ej: Servicio realizado sin inconvenientes..."
+                value={completionNote}
+                onChange={(e) => setCompletionNote(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowCompleteDialog(false)}
+              disabled={isCompleting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={handleConfirmComplete}
+              disabled={isCompleting}
+            >
+              {isCompleting ? 'Completando...' : 'Confirmar Completado'}
             </Button>
           </div>
         </DialogContent>

@@ -13,11 +13,11 @@ logger = logging.getLogger(__name__)
 @method_decorator(csrf_exempt, name='dispatch')
 class WhatsAppWebhookView(View):
     """
-    Endpoint for Meta Cloud API Webhooks.
+    Endpoint para Webhooks de Meta Cloud API.
     """
     def get(self, request, *args, **kwargs):
         """
-        Verification Request from Meta.
+        Solicitud de Verificación de Meta.
         """
         mode = request.GET.get('hub.mode')
         token = request.GET.get('hub.verify_token')
@@ -32,7 +32,7 @@ class WhatsAppWebhookView(View):
 
     def post(self, request, *args, **kwargs):
         """
-        Event Notification from Meta.
+        Notificación de Evento de Meta.
         """
         try:
             payload = json.loads(request.body)

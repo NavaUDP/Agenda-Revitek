@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 
 class WhatsAppLog(models.Model):
     """
-    Log of WhatsApp messages sent and received via Meta Cloud API.
+    Registro de mensajes de WhatsApp enviados y recibidos vía Meta Cloud API.
     """
     DIRECTION_CHOICES = [
         ('OUTBOUND', 'Outbound (Sent)'),
@@ -31,19 +31,19 @@ class WhatsAppLog(models.Model):
         null=True,
         blank=True,
         related_name='whatsapp_logs',
-        help_text=_("Related reservation if applicable")
+        help_text=_("Reserva relacionada si aplica")
     )
 
     direction = models.CharField(max_length=10, choices=DIRECTION_CHOICES)
     message_type = models.CharField(max_length=20, choices=MESSAGE_TYPE_CHOICES, default='TEXT')
     
-    # Meta API ID (wamid.HBg...)
+    # ID de API de Meta (wamid.HBg...)
     whatsapp_id = models.CharField(max_length=100, blank=True, null=True, db_index=True)
     
-    # Phone number (recipient or sender)
+    # Número de teléfono (destinatario o remitente)
     phone_number = models.CharField(max_length=32)
     
-    # Raw payload or content summary
+    # Payload crudo o resumen de contenido
     content = models.JSONField(default=dict, blank=True)
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SENT')
@@ -64,7 +64,7 @@ class WhatsAppLog(models.Model):
 
 class WhatsAppSession(models.Model):
     """
-    Tracks the conversation state for a user.
+    Rastrea el estado de la conversación para un usuario.
     """
     phone_number = models.CharField(max_length=32, unique=True)
     state = models.CharField(max_length=50, default='MENU')

@@ -1,15 +1,8 @@
 import { useState, useEffect } from 'react';
 import { listAllServices } from '@/api/servicios';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronDown, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface Service {
     id: number;
@@ -29,7 +22,6 @@ export function ServicesList({ onContinue, onScheduleSingle }: ServicesListProps
     const [services, setServices] = useState<Service[]>([]);
     const [groups, setGroups] = useState<Record<string, Service[]>>({});
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-    const [selectedServices, setSelectedServices] = useState<number[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -76,9 +68,7 @@ export function ServicesList({ onContinue, onScheduleSingle }: ServicesListProps
         setExpanded((prev) => ({ ...prev, [cat]: !prev[cat] }));
     };
 
-    const toggleSelectService = (id: number) => {
-        setSelectedServices((prev) => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-    };
+
 
     const desiredOrder = [
         'SERVICIO REVISION TÉCNICA',
@@ -101,25 +91,6 @@ export function ServicesList({ onContinue, onScheduleSingle }: ServicesListProps
 
     return (
         <div>
-            {selectedServices.length > 0 && (
-                <div className="sticky top-4 z-10 mb-6 p-4 bg-card rounded-lg border border-border shadow-sm flex items-center justify-between animate-in fade-in slide-in-from-top-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-muted-foreground">Seleccionados:</span>
-                        {selectedServices.map((sid) => {
-                            const svc = services.find(s => s.id === sid);
-                            return (
-                                <div key={sid} className="px-3 py-1 bg-primary/10 text-primary text-sm rounded-full font-medium">
-                                    {svc?.nombre || sid}
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <Button onClick={() => onContinue(selectedServices)}>
-                        Continuar a reserva
-                    </Button>
-                </div>
-            )}
-
             <div className="space-y-4">
                 {sortedCategories.map((cat) => (
                     <div key={cat} className="rounded-lg border border-border overflow-hidden bg-card">
@@ -135,21 +106,6 @@ export function ServicesList({ onContinue, onScheduleSingle }: ServicesListProps
                             <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {groups[cat].map((s) => (
                                     <div key={s.id} className="group relative p-4 border rounded-lg bg-background hover:border-primary/50 transition-colors">
-                                        <div className="absolute top-3 right-3">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => toggleSelectService(s.id)}>
-                                                        {selectedServices.includes(s.id) ? 'Deseleccionar' : 'Seleccionar'}
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </div>
-
                                         <div className="flex flex-col h-full">
                                             <div className="mb-4 pr-8">
                                                 <h3 className="font-semibold text-lg leading-tight mb-2">{s.nombre}</h3>
@@ -165,21 +121,11 @@ export function ServicesList({ onContinue, onScheduleSingle }: ServicesListProps
                                                 )}
                                             </div>
 
-                                            <div className="mt-auto flex items-center justify-between gap-4">
-                                                <div className="flex items-center gap-2">
-                                                    <Checkbox
-                                                        id={`select-${s.id}`}
-                                                        checked={selectedServices.includes(s.id)}
-                                                        onCheckedChange={() => toggleSelectService(s.id)}
-                                                    />
-                                                    <label htmlFor={`select-${s.id}`} className="text-sm cursor-pointer select-none">
-                                                        Seleccionar
-                                                    </label>
-                                                </div>
+                                            <div className="mt-auto flex items-center justify-end gap-4">
                                                 <Button
                                                     onClick={() => onScheduleSingle(s.id)}
                                                     size="sm"
-                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white w-full sm:w-auto"
                                                 >
                                                     Agendar
                                                 </Button>

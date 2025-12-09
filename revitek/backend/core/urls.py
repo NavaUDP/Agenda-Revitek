@@ -16,4 +16,5 @@ urlpatterns = [
     path('catalog/', include('apps.catalog.urls')),
     path('clients/', include('apps.clients.urls')),
     path('whatsapp/', include('apps.whatsapp.urls')),
+    path('api/email/', include('apps.email_service.urls')),
 ]

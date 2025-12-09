@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Revitek{% endblock %}</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { text-align: center; padding-bottom: 20px; border-bottom: 1px solid #eeeeee; }
+        .header h1 { color: #333333; margin: 0; }
+        .content { padding: 20px 0; color: #555555; line-height: 1.6; }
+        .footer { text-align: center; padding-top: 20px; border-top: 1px solid #eeeeee; font-size: 12px; color: #999999; }
+        .button { display: inline-block; padding: 10px 20px; background-color: #007bff; color: #ffffff; text-decoration: none; border-radius: 5px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Revitek</h1>
+        </div>
+        <div class="content">
+            {% block content %}
+            <p>Hola,</p>
+            <p>{{ content }}</p>
+            {% endblock %}
+        </div>
+        <div class="footer">
+            <p>&copy; {% now "Y" %} Revitek. Todos los derechos reservados.</p>
+            <p>Este es un correo automático, por favor no respondas a esta dirección.</p>
+        </div>
+    </div>
+</body>
+</html>

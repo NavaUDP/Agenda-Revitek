@@ -13,7 +13,8 @@ from .views import (
     WorkScheduleViewSet,
     BreakViewSet,
     ScheduleExceptionViewSet,
-    aggregated_availability
+    aggregated_availability,
+    dashboard_stats
 )
 
 router = DefaultRouter()
@@ -30,24 +31,25 @@ urlpatterns = [
     # ViewSet URLs
     path("", include(router.urls)),
 
-    # Public availability
+    # Disponibilidad pública
     path("slots/", list_slots, name="list-slots"),
 
-    # Admin: slot generation
+    # Admin: generación de slots
     path("slots/generate/", generate_slots, name="generate-slots"),
 
-    # Cancel reservation
+    # Cancelar reserva
     path("reservations/<int:pk>/cancel/", cancel_reservation_view, name="cancel-reservation"),
 
     # Slot blocks (admin)
-    # Slot blocks (admin) - Now via ViewSet at /api/agenda/blocks/
+    # Bloqueos de slots (admin) - Ahora vía ViewSet en /api/agenda/blocks/
     # path("blocks/", list_blocks, name="list-blocks"),
     # path("blocks/create/", create_block, name="create-block"),
     # path("blocks/<int:pk>/update/", update_block, name="update-block"),
     # path("blocks/<int:pk>/delete/", delete_block, name="delete-block"),
     path("availability/", aggregated_availability, name="aggregated-availability"),
+    path("dashboard/", dashboard_stats, name="dashboard-stats"),
     
-    # Public: WhatsApp confirmation
+    # Público: confirmación por WhatsApp
     path("confirm/<uuid:token>/", confirm_reservation_via_link, name="confirm-reservation"),
 
 ]

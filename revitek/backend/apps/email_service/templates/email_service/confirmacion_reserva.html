@@ -1,0 +1,23 @@
+{% extends "email_service/base_email.html" %}
+
+{% block title %}Confirmación de Reserva{% endblock %}
+
+{% block content %}
+<h2>¡Hola {{ cliente.first_name }}!</h2>
+<p>Tu reserva ha sido confirmada exitosamente.</p>
+
+<div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
+    <h3>Detalles de la Cita</h3>
+    <p><strong>Fecha:</strong> {{ fecha|date:"l d F Y" }}</p>
+    <p><strong>Hora:</strong> {{ fecha|date:"H:i" }}</p>
+    <p><strong>Servicios:</strong></p>
+    <ul>
+        {% for servicio in servicios %}
+        <li>{{ servicio.service.name }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<p>Si necesitas modificar o cancelar tu reserva, por favor contáctanos o utiliza el siguiente enlace:</p>
+<a href="#" class="button">Gestionar Reserva</a>
+{% endblock %}

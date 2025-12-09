@@ -37,7 +37,7 @@ function ClientBookingPage() {
                 <div className="container mx-auto p-4 flex justify-between items-center">
                     <h1 className="text-2xl font-bold text-primary">Agenda tu Servicio</h1>
                     <Button asChild variant="outline">
-                        <Link to="/login">Login</Link>
+                        <Link to="/">Volver al Inicio</Link>
                     </Button>
                 </div>
             </header>

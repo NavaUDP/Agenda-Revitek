@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class MetaClient:
     """
-    Client for interacting with Meta Cloud API (WhatsApp).
+    Cliente para interactuar con la API de Meta Cloud (WhatsApp).
     """
     def __init__(self):
         if not settings.WHATSAPP_PHONE_NUMBER_ID:
@@ -22,7 +22,7 @@ class MetaClient:
 
     def send_template(self, to_phone, template_name, language_code="es", components=None, reservation=None):
         """
-        Send a template message.
+        Enviar un mensaje de plantilla.
         """
         payload = {
             "messaging_product": "whatsapp",
@@ -41,7 +41,7 @@ class MetaClient:
 
     def send_text(self, to_phone, body, reservation=None):
         """
-        Send a simple text message.
+        Enviar un mensaje de texto simple.
         """
         payload = {
             "messaging_product": "whatsapp",
@@ -53,14 +53,14 @@ class MetaClient:
 
     def send_reservation_confirmation_request(self, reservation):
         """
-        Send a message with Confirm/Cancel buttons to the client.
+        Enviar un mensaje con botones de Confirmar/Cancelar al cliente.
         """
         if not reservation.client.phone:
             return None
 
-        # Format date and time
-        # We need to fetch the first slot to show date/time
-        # Fix: Access via reservation_slots
+        # Formatear fecha y hora
+        # Necesitamos obtener el primer slot para mostrar fecha/hora
+        # Corrección: Acceder vía reservation_slots
         first_res_slot = reservation.reservation_slots.select_related('slot').order_by('slot__start').first()
         
         if first_res_slot and first_res_slot.slot:
@@ -112,16 +112,16 @@ class MetaClient:
 
     def send_booking_approved_notification(self, reservation):
         """
-        Send a template message notifying that the booking has been approved by admin.
-        Uses template: reservation_confirmatio
+        Enviar un mensaje de plantilla notificando que la reserva ha sido aprobada por el admin.
+        Usa plantilla: reservation_confirmation
         """
         if not reservation.client.phone:
-            logger.warning(f"Client {reservation.client.id} has no phone number. Cannot send approval template.")
+            logger.warning(f"Cliente {reservation.client.id} no tiene número de teléfono. No se puede enviar plantilla de aprobación.")
             return None
         
-        logger.info(f"Sending approval template to {reservation.client.phone}")
+        logger.info(f"Enviando plantilla de aprobación a {reservation.client.phone}")
 
-        # Fix: Access via reservation_slots
+        # Corrección: Acceder vía reservation_slots
         first_res_slot = reservation.reservation_slots.select_related('slot').order_by('slot__start').first()
         
         if first_res_slot and first_res_slot.slot:
@@ -133,7 +133,7 @@ class MetaClient:
 
         service_names = ", ".join([s.service.name for s in reservation.services.all()])
         
-        # Template parameters (Body)
+        # Parámetros de la plantilla (Cuerpo)
         # {{1}} = Nombre Cliente
         # {{2}} = Fecha
         # {{3}} = Hora
@@ -159,14 +159,14 @@ class MetaClient:
 
     def send_confirmation_link(self, reservation, token):
         """
-        Send WhatsApp message with confirmation link (2-hour expiration).
-        This replaces the template message when admin approves.
+        Enviar mensaje de WhatsApp con enlace de confirmación (expiración de 2 horas).
+        Esto reemplaza el mensaje de plantilla cuando el admin aprueba.
         """
         if not reservation.client.phone:
             logger.warning("No phone number for reservation confirmation")
             return None
         
-        # Get reservation details
+        # Obtener detalles de la reserva
         first_res_slot = reservation.reservation_slots.select_related('slot').order_by('slot__start').first()
         
         if first_res_slot and first_res_slot.slot:
@@ -178,14 +178,14 @@ class MetaClient:
         
         service_names = ", ".join([s.service.name for s in reservation.services.all()])
         
-        # Confirmation link - for now using localhost, update in production
-        # Production should be: https://tudominio.com/confirmar/{token}
-        # Confirmation link
+        # Enlace de confirmación - por ahora usando localhost, actualizar en producción
+        # Producción debería ser: https://tudominio.com/confirmar/{token}
+        # Enlace de confirmación
         base_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
         confirmation_url = f"{base_url}/confirmar/{token}"
         
-        # Send text message with link
-        # Send text message with link
+        # Enviar mensaje de texto con enlace
+        # Enviar mensaje de texto con enlace
         message = BotMessages.CONFIRMATION_LINK_MSG.format(
             service_names=service_names,
             date=date_str,
@@ -197,7 +197,7 @@ class MetaClient:
 
     def _send_request(self, payload, reservation=None, message_type='text'):
         """
-        Internal method to send the request and log it.
+        Método interno para enviar la solicitud y registrarla.
         """
         log = WhatsAppLog.objects.create(
             direction='OUTBOUND',
@@ -236,11 +236,11 @@ class MetaClient:
 
 class WebhookHandler:
     """
-    Handles incoming webhook payloads from Meta.
+    Maneja payloads de webhook entrantes de Meta.
     """
     def handle_payload(self, payload):
         """
-        Main entry point for processing webhook data.
+        Punto de entrada principal para procesar datos del webhook.
         """
         entry = payload.get('entry', [])
         for e in entry:
@@ -248,11 +248,11 @@ class WebhookHandler:
             for change in changes:
                 value = change.get('value', {})
                 
-                # 1. Handle Status Updates (sent, delivered, read)
+                # 1. Manejar Actualizaciones de Estado (enviado, entregado, leído)
                 if 'statuses' in value:
                     self.handle_statuses(value['statuses'])
                 
-                # 2. Handle Incoming Messages
+                # 2. Manejar Mensajes Entrantes
                 if 'messages' in value:
                     self.handle_messages(value['messages'])
 
@@ -261,11 +261,11 @@ class WebhookHandler:
             whatsapp_id = status.get('id')
             new_status = status.get('status').upper() # sent, delivered, read
             
-            # Update log if exists
+            # Actualizar log si existe
             try:
                 log = WhatsAppLog.objects.get(whatsapp_id=whatsapp_id)
                 
-                # Map Meta status to our choices
+                # Mapear estado de Meta a nuestras opciones
                 if new_status == 'SENT': log.status = 'SENT'
                 elif new_status == 'DELIVERED': log.status = 'DELIVERED'
                 elif new_status == 'READ': log.status = 'READ'
@@ -290,7 +290,7 @@ class WebhookHandler:
             from_phone = msg.get('from')
             msg_type = msg.get('type')
             
-            # Log incoming message
+            # Registrar mensaje entrante
             log = WhatsAppLog.objects.create(
                 direction='INBOUND',
                 message_type=msg_type.upper(),
@@ -300,13 +300,13 @@ class WebhookHandler:
                 status='RECEIVED'
             )
 
-            # Handle Button Replies (Interactive)
+            # Manejar Respuestas de Botones (Interactivo)
             if msg_type == 'interactive':
                 interactive = msg.get('interactive', {})
                 if interactive.get('type') == 'button_reply':
                     button_id = interactive.get('button_reply', {}).get('id')
                     
-                    # Expected format: "CONFIRM_RESERVATION_<ID>" or "CANCEL_RESERVATION_<ID>"
+                    # Formato esperado: "CONFIRM_RESERVATION_<ID>" o "CANCEL_RESERVATION_<ID>"
                     if button_id:
                         parts = button_id.split('_')
                         action = parts[0] # CONFIRM or CANCEL
@@ -336,7 +336,7 @@ class WebhookHandler:
                             except (Reservation.DoesNotExist, ValueError):
                                 client.send_text(from_phone, BotMessages.CONFIRMATION_NOT_FOUND)
             
-            # Handle Template Button Clicks (type='button')
+            # Manejar Clics en Botones de Plantilla (type='button')
             elif msg_type == 'button':
                 button_payload = msg.get('button', {}).get('payload')
                 context_id = msg.get('context', {}).get('id')
@@ -345,7 +345,7 @@ class WebhookHandler:
                 
                 if context_id:
                     try:
-                        # Find the original outbound message log to get the reservation
+                        # Encontrar el log del mensaje saliente original para obtener la reserva
                         original_log = WhatsAppLog.objects.filter(whatsapp_id=context_id).first()
                         
                         if original_log and original_log.reservation:
@@ -355,8 +355,8 @@ class WebhookHandler:
                             
                             logger.debug(f"Found reservation #{reservation.id} from context.")
 
-                            # Logic for "Sí, confirmo" (or any positive payload)
-                            # We assume the button is for confirmation since we sent a confirmation template
+                            # Lógica para "Sí, confirmo" (o cualquier payload positivo)
+                            # Asumimos que el botón es para confirmación ya que enviamos una plantilla de confirmación
                             if reservation.status != 'CANCELLED':
                                 reservation.status = 'RECONFIRMED'
                                 reservation.save(update_fields=['status'])
@@ -370,7 +370,7 @@ class WebhookHandler:
                     except Exception as e:
                         logger.error(f"Error handling button click: {e}")
 
-            # Handle Text (Chatbot)
+            # Manejar Texto (Chatbot)
             elif msg_type == 'text':
                 bot = ChatBot()
                 bot.handle_message(from_phone, msg)
@@ -378,7 +378,7 @@ class WebhookHandler:
 
 class ChatBot:
     """
-    Handles the conversational logic for the WhatsApp Bot.
+    Maneja la lógica conversacional para el Bot de WhatsApp.
     """
     def __init__(self):
         self.client = MetaClient()
@@ -386,14 +386,14 @@ class ChatBot:
     def handle_message(self, phone, message_body):
         from .models import WhatsAppSession
         
-        # Get or create session
+        # Obtener o crear sesión
         session, created = WhatsAppSession.objects.get_or_create(phone_number=phone)
         
-        # Normalize input
+        # Normalizar entrada
         text = message_body.get('text', {}).get('body', '').strip()
         text_lower = text.lower()
         
-        # Global Commands (available in any state)
+        # Comandos Globales (disponibles en cualquier estado)
         if text_lower in ['reset', 'menu', 'inicio', 'volver']:
             session.state = 'MENU'
             session.data = {}
@@ -402,7 +402,7 @@ class ChatBot:
             self.send_menu(phone)
             return
         
-        # Cancel/Exit command
+        # Comando Cancelar/Salir
         if text_lower in ['cancelar', 'salir', 'cancel']:
             session.state = 'MENU'
             session.data = {}
@@ -410,12 +410,12 @@ class ChatBot:
             self.client.send_text(phone, BotMessages.CANCEL_SUCCESS)
             return
         
-        # Help command
+        # Comando Ayuda
         if text_lower in ['ayuda', 'help', '?']:
             self.send_help(phone, session.state)
             return
 
-        # State Machine
+        # Máquina de Estados
         if session.state == 'MENU':
             self.handle_menu_selection(session, text)
         
@@ -435,10 +435,10 @@ class ChatBot:
             self.handle_address_input(session, text)
             
         else:
-            # Fallback / Trigger on any message
-            # If the user sends something we don't recognize in a specific state, or if state is MENU
-            # we default to showing the menu.
-            # This ensures "Hola", "Buenas", etc. triggers the bot.
+            # Fallback / Disparar en cualquier mensaje
+            # Si el usuario envía algo que no reconocemos en un estado específico, o si el estado es MENU
+            # por defecto mostramos el menú.
+            # Esto asegura que "Hola", "Buenas", etc. disparen el bot.
             self.send_menu(phone)
 
     def send_menu(self, phone):
@@ -504,14 +504,14 @@ class ChatBot:
             date_obj = datetime.strptime(text, "%d/%m/%Y").date()
             today = datetime.now().date()
             
-            # Basic validation: future date
+            # Validación básica: fecha futura
             if date_obj < today:
                 self.client.send_text(session.phone_number, BotMessages.DATE_PAST_ERROR.format(
                     next_day=(today + timedelta(days=1)).strftime("%d/%m/%Y")
                 ))
                 return
             
-            # Check if date is too far in the future (e.g., more than 3 months)
+            # Verificar si la fecha es muy lejana en el futuro (ej., más de 3 meses)
             max_date = today + timedelta(days=90)
             if date_obj > max_date:
                 self.client.send_text(session.phone_number, BotMessages.DATE_TOO_FAR_ERROR.format(
@@ -523,7 +523,7 @@ class ChatBot:
             session.state = 'SELECT_TIME'
             session.save()
             
-            # Fetch available slots
+            # Obtener slots disponibles
             self.send_time_slots(session.phone_number, date_obj)
             
         except ValueError:
@@ -532,7 +532,7 @@ class ChatBot:
     def send_time_slots(self, phone, date_obj):
         from apps.agenda.services import compute_aggregated_availability
         
-        # Get selected service from session
+        # Obtener servicio seleccionado de la sesión
         from .models import WhatsAppSession
         try:
             session = WhatsAppSession.objects.get(phone_number=phone)
@@ -545,8 +545,8 @@ class ChatBot:
             self.client.send_text(phone, BotMessages.SERVICE_NONE_SELECTED)
             return
 
-        # Fetch real availability
-        # compute_aggregated_availability expects list of service_ids and date string "YYYY-MM-DD"
+        # Obtener disponibilidad real
+        # compute_aggregated_availability espera lista de service_ids y cadena de fecha "YYYY-MM-DD"
         date_str = date_obj.strftime("%Y-%m-%d")
         available_slots = compute_aggregated_availability([service_id], date_str)
         
@@ -554,13 +554,13 @@ class ChatBot:
             self.client.send_text(phone, BotMessages.DATE_NO_SLOTS.format(date=date_obj.strftime('%d/%m/%Y')))
             return
 
-        # Store available slots in session for validation in next step
-        # We store a simplified list: [{'start': '09:00', 'end': '10:00', 'label': '09:00 AM'}]
+        # Almacenar slots disponibles en sesión para validación en el siguiente paso
+        # Almacenamos una lista simplificada: [{'start': '09:00', 'end': '10:00', 'label': '09:00 AM'}]
         slots_data = []
         msg = BotMessages.TIME_SLOTS_HEADER.format(date=date_obj.strftime('%d/%m/%Y'))
 
         for i, slot in enumerate(available_slots, 1):
-            # slot is a dict: {'inicio': datetime, 'fin': datetime, ...}
+            # slot es un dict: {'inicio': datetime, 'fin': datetime, ...}
             start_dt = slot['inicio']
             end_dt = slot['fin']
             start_str = start_dt.strftime("%H:%M")
@@ -573,7 +573,7 @@ class ChatBot:
             
             msg += f"{i}️⃣  {label}\n"
             
-            # Limit to 10 options for UX
+            # Limitar a 10 opciones para UX
             if i >= 10:
                 msg += "\n_(Mostrando los primeros 10 horarios)_\n"
                 break
@@ -598,23 +598,23 @@ class ChatBot:
                 selected_time = selected_slot['start']
                 selected_label = selected_slot['label']
                 
-                # Send confirmation that we're processing
+                # Enviar confirmación de que estamos procesando
                 self.client.send_text(session.phone_number, BotMessages.TIME_SELECTED.format(time_label=selected_label))
                 
-                # Save time
+                # Guardar hora
                 session.data['time'] = selected_time
                 session.save()
 
-                # Check if user exists to decide next step
+                # Verificar si el usuario existe para decidir el siguiente paso
                 user = self.find_user_by_phone(session.phone_number)
                 
                 if not user:
-                    # Ask for email
+                    # Pedir email
                     session.state = 'WAITING_FOR_EMAIL'
                     session.save()
                     self.client.send_text(session.phone_number, BotMessages.EMAIL_REQUEST)
                 else:
-                    # Ask for address
+                    # Pedir dirección
                     session.state = 'WAITING_FOR_ADDRESS'
                     session.save()
                     self.client.send_text(session.phone_number, BotMessages.ADDRESS_REQUEST)
@@ -626,11 +626,11 @@ class ChatBot:
     def find_user_by_phone(self, phone_number):
         from apps.clients.models import User
         
-        # Normalize incoming phone: remove non-digits
+        # Normalizar teléfono entrante: eliminar no dígitos
         raw_phone = ''.join(filter(str.isdigit, phone_number))
         
-        # Heuristic: Match last 8 digits (Chilean standard without +569 prefix is 8 digits)
-        # This handles:
+        # Heurística: Coincidir últimos 8 dígitos (estándar chileno sin prefijo +569 son 8 dígitos)
+        # Esto maneja:
         # +56 9 8614 2813 -> 86142813
         # 9 8614 2813 -> 86142813
         # 8614 2813 -> 86142813
@@ -645,29 +645,29 @@ class ChatBot:
             
         search_suffix = raw_phone[-8:]
         
-        # Optimized search: Direct DB query using endswith
-        # Since we normalize phones on save, this is reliable
+        # Búsqueda optimizada: Consulta directa a BD usando endswith
+        # Dado que normalizamos teléfonos al guardar, esto es confiable
         return User.objects.filter(phone__endswith=search_suffix).first()
 
     def handle_email_input(self, session, text):
         from apps.clients.models import User
         import re
         
-        # Simple email validation
+        # Validación simple de email
         email = text.strip().lower()
         if not re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email):
             self.client.send_text(session.phone_number, BotMessages.EMAIL_INVALID)
             return
 
-        # Check if user exists
+        # Verificar si el usuario existe
         try:
             user = User.objects.get(email=email)
-            # Link phone to user
+            # Vincular teléfono a usuario
             user.phone = session.phone_number
             user.save()
             self.client.send_text(session.phone_number, BotMessages.EMAIL_LINKED.format(name=user.first_name))
         except User.DoesNotExist:
-            # Create new user
+            # Crear nuevo usuario
             user = User.objects.create_user(
                 email=email,
                 first_name="Cliente",  # Placeholder
@@ -675,18 +675,18 @@ class ChatBot:
             )
             self.client.send_text(session.phone_number, BotMessages.EMAIL_CREATED.format(email=email))
 
-        # Proceed to address collection
+        # Proceder a recolección de dirección
         session.state = 'WAITING_FOR_ADDRESS'
         session.save()
         self.client.send_text(session.phone_number, BotMessages.ADDRESS_REQUEST)
 
 
     def handle_address_input(self, session, text):
-        # Save address to session
+        # Guardar dirección en sesión
         session.data['address'] = text.strip()
         session.save()
         
-        # Proceed to finalize
+        # Proceder a finalizar
         if 'time' in session.data:
             self.finalize_booking(session, session.data['time'])
         else:
@@ -694,41 +694,41 @@ class ChatBot:
 
     def _parse_address(self, text):
         """
-        Heuristic to parse address string into components.
-        Expected format: "Street Number, Complement, Commune"
+        Heurística para analizar cadena de dirección en componentes.
+        Formato esperado: "Calle Número, Complemento, Comuna"
         """
         import re
         from apps.clients.models import Commune
         
         text = text.strip()
         
-        # 1. Try to find Commune at the end
-        # We fetch all communes to check against
-        # In a real app with many communes, this might be slow, but for Chile/Santiago it's fine (~50 communes)
+        # 1. Intentar encontrar Comuna al final
+        # Obtenemos todas las comunas para comparar
+        # En una app real con muchas comunas, esto podría ser lento, pero para Chile/Santiago está bien (~50 comunas)
         communes = list(Commune.objects.all())
         selected_commune = None
         
-        # Sort by length desc to match "San Joaquín" before "San"
+        # Ordenar por longitud desc para coincidir "San Joaquín" antes de "San"
         communes.sort(key=lambda c: len(c.name), reverse=True)
         
         clean_text = text
         for commune in communes:
             if clean_text.lower().endswith(commune.name.lower()):
                 selected_commune = commune
-                # Remove commune from text (and trailing comma/spaces)
+                # Eliminar comuna del texto (y coma/espacios finales)
                 clean_text = clean_text[:-(len(commune.name))].strip().rstrip(',')
                 break
         
-        # If no commune found, default to first one or specific default
+        # Si no se encuentra comuna, por defecto usar la primera o una específica
         if not selected_commune:
             selected_commune = Commune.objects.first()
 
-        # 2. Parse Street and Number
-        # Regex: Capture everything until the last sequence of digits
-        # Example: "Av. Vicuña Mackenna 4927, Depto 3108"
-        # Street: "Av. Vicuña Mackenna"
-        # Number: "4927"
-        # Complement: ", Depto 3108"
+        # 2. Analizar Calle y Número
+        # Regex: Capturar todo hasta la última secuencia de dígitos
+        # Ejemplo: "Av. Vicuña Mackenna 4927, Depto 3108"
+        # Calle: "Av. Vicuña Mackenna"
+        # Número: "4927"
+        # Complemento: ", Depto 3108"
         
         match = re.search(r'^(?P<street>.+?)\s+(?P<number>\d+)(?P<complement>.*)$', clean_text)
         
@@ -737,7 +737,7 @@ class ChatBot:
             number = match.group('number').strip()
             complement = match.group('complement').strip().lstrip(',').strip()
         else:
-            # Fallback if no number found
+            # Fallback si no se encuentra número
             street = clean_text
             number = "S/N"
             complement = ""
@@ -755,32 +755,32 @@ class ChatBot:
         from apps.catalog.models import Service
         from datetime import datetime, time
         
-        # Store time in session just in case we need to resume after registration
+        # Almacenar hora en sesión por si necesitamos reanudar después del registro
         session.data['time'] = time_str
         session.save()
         
         service_id = session.data.get('service_id')
         date_str = session.data.get('date')
         
-        # 1. Find User
+        # 1. Encontrar Usuario
         user = self.find_user_by_phone(session.phone_number)
         
         if not user:
-            # Should not happen if flow is correct, but safety check
+            # No debería suceder si el flujo es correcto, pero verificación de seguridad
             session.state = 'WAITING_FOR_EMAIL'
             session.save()
             self.client.send_text(session.phone_number, BotMessages.EMAIL_REQUEST)
             return
 
-        # 2. Find Service
+        # 2. Encontrar Servicio
         try:
             service = Service.objects.get(pk=service_id)
         except Service.DoesNotExist:
             self.client.send_text(session.phone_number, "⚠️ Hubo un error al identificar el servicio. Por favor intenta comenzar de nuevo enviando 'Menu'.")
             return
 
-        # 3. Find Slot
-        # Parse date and time
+        # 3. Encontrar Slot
+        # Analizar fecha y hora
         try:
             date_obj = datetime.strptime(date_str, "%d/%m/%Y").date()
             hour = int(time_str.split(':')[0])
@@ -795,9 +795,9 @@ class ChatBot:
             self.client.send_text(session.phone_number, "⚠️ Error en el formato de fecha/hora.")
             return
 
-        # Search for AVAILABLE slots for this service at this time
-        # We need a professional who performs this service
-        # And has enough consecutive slots to cover the duration
+        # Buscar slots DISPONIBLES para este servicio a esta hora
+        # Necesitamos un profesional que realice este servicio
+        # Y tenga suficientes slots consecutivos para cubrir la duración
         
         # Find professionals for this service
         professionals = Professional.objects.filter(services__service=service, active=True)

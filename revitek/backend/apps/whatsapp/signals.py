@@ -6,18 +6,18 @@ from .services import MetaClient
 @receiver(post_save, sender=Reservation)
 def send_confirmation_whatsapp(sender, instance, created, **kwargs):
     """
-    Triggered when a new Reservation is created.
-    Sends a WhatsApp template with Confirm/Cancel buttons.
+    Disparado cuando se crea una nueva Reserva.
+    Envía una plantilla de WhatsApp con botones de Confirmar/Cancelar.
     """
     if created and instance.client and instance.client.phone:
         client = MetaClient()
         
-        # Template Name: "reservation_confirmation" (Must be created in Meta Dashboard)
-        # Parameters: {{1}} = Client Name, {{2}} = Date, {{3}} = Time
+        # Nombre de Plantilla: "reservation_confirmation" (Debe ser creada en Meta Dashboard)
+        # Parámetros: {{1}} = Nombre Cliente, {{2}} = Fecha, {{3}} = Hora
         
         if not instance.reservation_slots.exists():
-            # If no slots are linked yet (e.g. during creation), skip sending message here.
-            # The caller (e.g. ChatBot) should handle sending the confirmation once slots are linked.
+            # Si no hay slots vinculados aún (ej. durante creación), omitir envío de mensaje aquí.
+            # El llamador (ej. ChatBot) debería manejar el envío de la confirmación una vez que los slots estén vinculados.
             return
 
         date_str = instance.reservation_slots.first().slot.start.strftime("%d/%m/%Y")

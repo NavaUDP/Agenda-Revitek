@@ -124,7 +124,7 @@ export default function ProfessionalAccessForm({ professional, onUpdate }: Profe
                                                 <FormItem>
                                                     <FormLabel>Nueva Contraseña</FormLabel>
                                                     <FormControl>
-                                                        <Input type="password" {...field} />
+                                                        <Input type="password" autoComplete="new-password" {...field} />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
@@ -152,7 +152,7 @@ export default function ProfessionalAccessForm({ professional, onUpdate }: Profe
                                         <FormItem>
                                             <FormLabel>Email de Acceso</FormLabel>
                                             <FormControl>
-                                                <Input type="email" placeholder="email@ejemplo.com" {...field} />
+                                                <Input type="email" placeholder="email@ejemplo.com" autoComplete="username" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -165,7 +165,7 @@ export default function ProfessionalAccessForm({ professional, onUpdate }: Profe
                                         <FormItem>
                                             <FormLabel>Contraseña</FormLabel>
                                             <FormControl>
-                                                <Input type="password" placeholder="******" {...field} />
+                                                <Input type="password" placeholder="******" autoComplete="new-password" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>

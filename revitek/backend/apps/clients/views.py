@@ -45,7 +45,7 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def lookup(self, request):
         """
-        Public endpoint to lookup user details by email or phone for booking autocomplete.
+        Endpoint público para buscar detalles de usuario por email o teléfono para autocompletado de reservas.
         """
         email = request.query_params.get('email')
         phone = request.query_params.get('phone')
@@ -62,18 +62,18 @@ class UserViewSet(viewsets.ModelViewSet):
         if not user:
             return Response({"found": False}, status=404)
 
-        # Get latest vehicle and address
+        # Obtener último vehículo y dirección
         vehicle = user.vehicles.order_by('-id').first()
         address = user.addresses.order_by('-id').first()
 
-        # SECURITY: Mask sensitive data for public lookup
+        # SEGURIDAD: Enmascarar datos sensibles para búsqueda pública
         vehicle_data = None
         if vehicle:
             vehicle_data = {
                 "id": vehicle.id,
                 "brand": vehicle.brand,
                 "model": vehicle.model,
-                # Mask plate: AB-CD-12 -> AB-**-**
+                # Enmascarar patente: AB-CD-12 -> AB-**-**
                 "license_plate": f"{vehicle.license_plate[:2]}****" if len(vehicle.license_plate) > 2 else "**"
             }
 
@@ -81,8 +81,8 @@ class UserViewSet(viewsets.ModelViewSet):
         if address:
             address_data = {
                 "id": address.id,
-                "commune": address.commune.name, # Safe
-                # Mask street: Av. Providencia 1234 -> Av. Provi******
+                "commune": address.commune.name, # Seguro
+                # Enmascarar calle: Av. Providencia 1234 -> Av. Provi******
                 "street": f"{address.street[:5]}******" if len(address.street) > 5 else "***",
                 "number": "**",
                 "alias": address.alias

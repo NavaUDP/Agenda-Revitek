@@ -6,6 +6,7 @@ import LandingPage from '../pages/LandingPage';
 import ServiciosPage from '../pages/ServiciosPage';
 import { LoginPage } from '../pages/LoginPage';
 import AdminDashboard from '../pages/AgendaPage';
+import DashboardPage from '../pages/DashboardPage';
 import { ProtectedRoute } from './ProtectedRoute';
 import ClientBookingPage from '../pages/ClientBookingPage';
 import { AdminLayout } from '../layouts/AdminLayout';
@@ -49,8 +50,9 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        {/* Ruta por defecto para /admin -> redirige a la agenda */}
-        <Route index element={<Navigate to="agenda" replace />} />
+        {/* Ruta por defecto para /admin -> Dashboard */}
+        <Route index element={<DashboardPage />} />
+        <Route path="dashboard" element={<DashboardPage />} />
         <Route path="agenda" element={<AgendaPage />} />
         <Route path="profesionales" element={<ProfessionalsPage />} />
         <Route path="profesionales/:id" element={<ProfessionalEditPage />} />

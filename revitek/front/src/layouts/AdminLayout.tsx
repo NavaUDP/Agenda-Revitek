@@ -23,6 +23,17 @@ export const AdminLayout = () => {
   const NavLinks = ({ mobile = false }: { mobile?: boolean }) => (
     <>
       <NavLink
+        to="/admin/dashboard"
+        onClick={() => mobile && setIsMobileMenuOpen(false)}
+        className={({ isActive }) =>
+          "flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors " +
+          (isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")
+        }
+      >
+        <Home className="h-4 w-4" />
+        <span>Inicio</span>
+      </NavLink>
+      <NavLink
         to="/admin/agenda"
         onClick={() => mobile && setIsMobileMenuOpen(false)}
         className={({ isActive }) =>

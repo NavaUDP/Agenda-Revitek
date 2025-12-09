@@ -3,7 +3,7 @@ import re
 
 def validate_time_list(value):
     """
-    Validates that the input is a list of strings in "HH:MM" format.
+    Valida que la entrada sea una lista de cadenas en formato "HH:MM".
     """
     if not isinstance(value, list):
         raise ValidationError("El valor debe ser una lista.")

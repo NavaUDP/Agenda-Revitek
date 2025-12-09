@@ -11,7 +11,12 @@ import { useReservations } from '@/hooks/useReservations';
 import ReservationsFilter from '@/components/reservations/ReservationsFilter';
 import ReservationsTable from '@/components/reservations/ReservationsTable';
 
+import { useContext } from 'react';
+import { AuthContext } from '@/context/AuthContext';
+
 export default function ReservationsPage() {
+    const auth = useContext(AuthContext);
+    const user = auth?.user;
     const {
         reservations,
         loading,
@@ -58,6 +63,7 @@ export default function ReservationsPage() {
                 setFilters={setFilters}
                 professionals={professionals}
                 onRefresh={refresh}
+                showProfessionalFilter={user?.is_staff}
             />
 
             <ReservationsTable
@@ -76,6 +82,7 @@ export default function ReservationsPage() {
                 reserva={selectedReservation}
                 open={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
+                onRefresh={refresh}
             />
         </div>
     );

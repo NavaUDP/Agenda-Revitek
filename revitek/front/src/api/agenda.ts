@@ -66,6 +66,11 @@ export async function updateReservationStatus(id: number, status: string): Promi
   return data;
 }
 
+export async function completeReservation(id: number, note?: string): Promise<ReservationDetailed> {
+  const { data } = await http.post(`/agenda/reservations/${id}/complete/`, { note });
+  return data;
+}
+
 export async function confirmReservation(token: string): Promise<{ detail: string }> {
   const { data } = await http.get(`/agenda/confirm/${token}/`);
   return data;

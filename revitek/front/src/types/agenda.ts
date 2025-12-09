@@ -60,6 +60,7 @@ export interface ReservationDetailed {
     client_info: ClientInfo | null;
     address: Address | null;
     vehicle: Vehicle | null;
+    vehicle_info?: Vehicle | null; // Alias for vehicle, used in some responses
     client_addresses: Address[];
     client_vehicles: Vehicle[];
 }

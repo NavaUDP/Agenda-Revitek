@@ -59,7 +59,7 @@ from rest_framework.exceptions import PermissionDenied
 # -------------------------------------------------------------------
 class ProfessionalViewSet(viewsets.ModelViewSet):
     """
-    API endpoint that allows professionals to be viewed or edited.
+    Endpoint de API que permite ver o editar profesionales.
     """
     queryset = Professional.objects.filter(active=True).select_related('user')
     permission_classes = [AllowAny]
@@ -76,12 +76,12 @@ class ProfessionalViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def create_user(self, request, pk=None):
         """
-        Creates or links a User to this Professional.
+        Crea o vincula un Usuario a este Profesional.
         Body: { "email": "...", "password": "..." }
         """
         professional = self.get_object()
         
-        # Only admins should be able to do this
+        # Solo los administradores deberían poder hacer esto
         if not request.user.is_staff:
              return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
 
@@ -93,14 +93,13 @@ class ProfessionalViewSet(viewsets.ModelViewSet):
 
         email = email.strip().lower()
 
-        # Check if user exists
+        # Verificar si el usuario existe
         try:
             user = User.objects.get(email=email)
-            # If user exists, just link it (maybe update password if requested? No, safer not to)
-            # Actually, user might want to set password for existing user if they forgot.
-            # For now, let's just link.
+            # Si el usuario existe, solo vincularlo (¿quizás actualizar contraseña si se solicita? No, es más seguro no hacerlo).
+            # Por ahora, solo vincular.
         except User.DoesNotExist:
-            # Create new user
+            # Crear nuevo usuario
             try:
                 user = User.objects.create_user(
                     email=email,
@@ -112,7 +111,7 @@ class ProfessionalViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Link to professional
+        # Vincular al profesional
         professional.user = user
         professional.save()
 
@@ -125,7 +124,7 @@ class ProfessionalViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def update_password(self, request, pk=None):
         """
-        Updates the password for the user linked to this professional.
+        Actualiza la contraseña para el usuario vinculado a este profesional.
         Body: { "password": "..." }
         """
         professional = self.get_object()
@@ -151,8 +150,8 @@ class ProfessionalViewSet(viewsets.ModelViewSet):
 # -------------------------------------------------------------------
 class ProfessionalServiceViewSet(viewsets.ModelViewSet):
     """
-    API endpoint for managing the relationship between professionals and services.
-    Allows filtering by professional_id or service_id.
+    Endpoint de API para gestionar la relación entre profesionales y servicios.
+    Permite filtrar por professional_id o service_id.
     """
     queryset = ProfessionalService.objects.all()
     serializer_class = ProfessionalServiceSerializer
@@ -183,7 +182,7 @@ class ProfessionalServiceViewSet(viewsets.ModelViewSet):
 # -------------------------------------------------------------------
 class WorkScheduleViewSet(viewsets.ModelViewSet):
     """
-    API endpoint for managing work schedules (regular working hours) for professionals.
+    Endpoint de API para gestionar horarios de trabajo (horas laborales regulares) de profesionales.
     """
     queryset = WorkSchedule.objects.all()
     serializer_class = WorkScheduleSerializer
@@ -198,7 +197,7 @@ class WorkScheduleViewSet(viewsets.ModelViewSet):
         if user.is_staff:
             return queryset
         
-        # If user is a professional, return only their schedules
+        # Si el usuario es un profesional, devolver solo sus horarios
         if hasattr(user, 'professional_profile'):
             return queryset.filter(professional=user.professional_profile)
         
@@ -210,7 +209,7 @@ class WorkScheduleViewSet(viewsets.ModelViewSet):
 # -------------------------------------------------------------------
 class BreakViewSet(viewsets.ModelViewSet):
     """
-    API endpoint for managing breaks within a work schedule.
+    Endpoint de API para gestionar descansos dentro de un horario de trabajo.
     """
     queryset = Break.objects.all()
     serializer_class = BreakSerializer
@@ -232,7 +231,7 @@ class BreakViewSet(viewsets.ModelViewSet):
 # -------------------------------------------------------------------
 class ScheduleExceptionViewSet(viewsets.ModelViewSet):
     """
-    API endpoint for managing schedule exceptions (e.g., holidays, time off).
+    Endpoint de API para gestionar excepciones de horario (ej: feriados, tiempo libre).
     """
     queryset = ScheduleException.objects.all()
     serializer_class = ScheduleExceptionSerializer
@@ -256,7 +255,7 @@ class ScheduleExceptionViewSet(viewsets.ModelViewSet):
 @permission_classes([AllowAny])
 def list_slots(request):
     """
-    Public endpoint to view AVAILABLE slots.
+    Endpoint público para ver slots DISPONIBLES.
     Filters:
     - ?professional_id=#
     - ?date=YYYY-MM-DD
@@ -278,8 +277,8 @@ def list_slots(request):
 # =====================================================================
 class ReservationViewSet(viewsets.ViewSet):
     """
-    Public: create reservation
-    Admin: list, retrieve
+    Público: crear reserva
+    Admin: listar, recuperar
     """
 
     def get_permissions(self):
@@ -292,7 +291,7 @@ class ReservationViewSet(viewsets.ViewSet):
     # --------- List (Admin/Professional) ---------
     def list(self, request):
         """
-        List reservations with optional filters:
+        Listar reservas con filtros opcionales:
         - date: YYYY-MM-DD
         - status: PENDING, CONFIRMED, etc.
         - professional_id: int
@@ -310,10 +309,10 @@ class ReservationViewSet(viewsets.ViewSet):
         # RBAC Filtering
         if not user.is_staff:
             if hasattr(user, 'professional_profile'):
-                # Filter reservations where this professional is involved
+                # Filtrar reservas donde este profesional está involucrado
                 queryset = queryset.filter(reservation_slots__professional=user.professional_profile).distinct()
             else:
-                # Regular client (if implemented) or unauthorized
+                # Cliente regular (si se implementa) o no autorizado
                 return Response([], status=status.HTTP_200_OK)
 
         # Filters
@@ -323,12 +322,12 @@ class ReservationViewSet(viewsets.ViewSet):
         client_id = request.query_params.get("client_id")
         include_cancelled = request.query_params.get("include_cancelled", "false").lower() == "true"
 
-        if not include_cancelled:
+        if not include_cancelled and status_filter != 'CANCELLED':
             queryset = queryset.exclude(status='CANCELLED')
 
         if date_str:
-            # Filter by slots start date (approximation, as reservation spans slots)
-            # We look for reservations that have at least one slot starting on this date
+            # Filtrar por fecha de inicio de slots (aproximación, ya que la reserva abarca slots)
+            # Buscamos reservas que tengan al menos un slot comenzando en esta fecha
             queryset = queryset.filter(reservation_slots__slot__date=date_str).distinct()
         
         if status_filter:
@@ -340,7 +339,7 @@ class ReservationViewSet(viewsets.ViewSet):
         if client_id:
             queryset = queryset.filter(client_id=client_id)
 
-        # Order by creation date desc by default, or by slot date
+        # Ordenar por fecha de creación descendente por defecto, o por fecha de slot
         queryset = queryset.order_by("-created_at")
 
         serializer = ReservationDetailSerializer(queryset, many=True)
@@ -349,14 +348,14 @@ class ReservationViewSet(viewsets.ViewSet):
     # --------- Create (Public) ---------
     def create(self, request):
         """
-        Creates a full reservation including:
+        Crea una reserva completa incluyendo:
         - client
         - vehicle
         - address
         - services
         - slot chain
         """
-        # 1. Verify reCAPTCHA token
+        # 1. Verificar token de reCAPTCHA
         recaptcha_token = request.data.get('recaptcha_token')
         if not verify_recaptcha(recaptcha_token):
             return Response(
@@ -364,7 +363,7 @@ class ReservationViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 2. Validate Business Rules (Next day, Pending limit)
+        # 2. Validar Reglas de Negocio (Día siguiente, Límite de pendientes)
         is_valid, error_msg = validate_booking_rules(request.data)
         if not is_valid:
             return Response({"detail": error_msg}, status=status.HTTP_400_BAD_REQUEST)
@@ -388,7 +387,7 @@ class ReservationViewSet(viewsets.ViewSet):
         user = request.user
         if not user.is_staff:
             if hasattr(user, 'professional_profile'):
-                # Check if this reservation belongs to the professional
+                # Verificar si esta reserva pertenece al profesional
                 is_related = reservation.reservation_slots.filter(professional=user.professional_profile).exists()
                 if not is_related:
                      return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
@@ -429,6 +428,63 @@ class ReservationViewSet(viewsets.ViewSet):
         serializer = ReservationDetailSerializer(reservation)
         return Response(serializer.data)
 
+    # --------- Complete (Admin/Professional) ---------
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        """
+        Marca una reserva como COMPLETADA.
+        Body: { "note": "Optional completion note" }
+        """
+        reservation = get_object_or_404(Reservation, pk=pk)
+        user = request.user
+        
+        # 1. RBAC Check
+        if not user.is_staff:
+            if hasattr(user, 'professional_profile'):
+                is_related = reservation.reservation_slots.filter(professional=user.professional_profile).exists()
+                if not is_related:
+                     return Response({"detail": "No tienes permiso para gestionar esta reserva."}, status=status.HTTP_403_FORBIDDEN)
+            else:
+                return Response({"detail": "No autorizado."}, status=status.HTTP_403_FORBIDDEN)
+
+        # 2. Validate Status
+        valid_statuses = ['CONFIRMED', 'IN_PROGRESS', 'RECONFIRMED', 'WAITING_CLIENT']
+        if reservation.status not in valid_statuses:
+            return Response(
+                {"detail": f"No se puede completar una reserva en estado {reservation.status}. Debe estar Confirmada o En Curso."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 3. Validar Fecha (No se pueden completar reservas futuras)
+        # Verificar la hora de inicio del primer slot
+        first_slot = reservation.reservation_slots.order_by('slot__start').first()
+        if first_slot:
+            if first_slot.slot.start > timezone.now():
+                 return Response(
+                    {"detail": "No se puede completar una reserva futura antes de que ocurra."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # 4. Update
+        reservation.status = 'COMPLETED'
+        reservation.completed_at = timezone.now()
+        
+        note = request.data.get('note', '')
+        if note:
+            reservation.completion_note = note
+            
+        reservation.save()
+
+        # 5. Log History
+        from .models import StatusHistory
+        StatusHistory.objects.create(
+            reservation=reservation,
+            status='COMPLETED',
+            note=f"Completed by {user.email}. Note: {note}",
+        )
+
+        return Response(ReservationDetailSerializer(reservation).data)
+
 
 # =====================================================================
 # 3) Generate Slots (Admin)
@@ -459,7 +515,7 @@ def generate_slots(request):
 
     from .services import generate_slots_range
     
-    # Generate for 30 days starting from the given date
+    # Generar para 30 días comenzando desde la fecha dada
     slots = generate_slots_range(professional_id, target_date, days=30)
     return Response(SlotSerializer(slots, many=True).data)
 
@@ -492,18 +548,18 @@ def cancel_reservation_view(request, pk=None):
         if request.user.is_staff:
             is_authorized = True
         elif hasattr(request.user, 'professional_profile'):
-            # Professional can cancel reservations they are involved in
+            # El profesional puede cancelar reservas en las que está involucrado
             if reservation.reservation_slots.filter(professional=request.user.professional_profile).exists():
                 is_authorized = True
         elif reservation.client == request.user:
-            # Client can cancel their own reservation
+            # El cliente puede cancelar su propia reserva
             is_authorized = True
     
     # 2. Unauthenticated User (must provide confirmation token)
     elif token:
         if str(reservation.confirmation_token) == str(token):
             is_authorized = True
-            cancelled_by = "client" # Force 'client' if using token
+            cancelled_by = "client" # Forzar 'client' si se usa token
 
     if not is_authorized:
         return Response(
@@ -523,8 +579,8 @@ def cancel_reservation_view(request, pk=None):
 # =====================================================================
 class SlotBlockViewSet(viewsets.ModelViewSet):
     """
-    API endpoint for managing slot blocks.
-    Replaces previous FBVs: list_blocks, create_block, update_block, delete_block.
+    Endpoint de API para gestionar bloqueos de slots.
+    Reemplaza FBVs anteriores: list_blocks, create_block, update_block, delete_block.
     """
     queryset = SlotBlock.objects.all()
     serializer_class = SlotBlockSerializer
@@ -554,8 +610,8 @@ class SlotBlockViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        # The serializer validates that 'professional' is present.
-        # We need to check if the user is allowed to create a block for this professional.
+        # El serializador valida que 'professional' esté presente.
+        # Necesitamos verificar si el usuario tiene permiso para crear un bloqueo para este profesional.
         professional = serializer.validated_data.get('professional')
         
         # RBAC Check
@@ -568,7 +624,7 @@ class SlotBlockViewSet(viewsets.ModelViewSet):
 
         block = serializer.save(created_by=user)
         
-        # Mark overlapping slots as BLOCKED
+        # Marcar slots superpuestos como BLOQUEADOS
         Slot.objects.filter(
             professional_id=block.professional_id,
             start__gte=block.start,
@@ -577,12 +633,12 @@ class SlotBlockViewSet(viewsets.ModelViewSet):
         ).update(status="BLOCKED")
 
     def perform_update(self, serializer):
-        # RBAC Check is implicitly handled by get_queryset (user can only see their own blocks),
-        # but we should ensure they don't change the professional to someone else.
-        # For simplicity, we assume the serializer or permissions handle this, 
-        # but let's add a check if professional is being changed.
+        # La verificación RBAC es manejada implícitamente por get_queryset (el usuario solo ve sus propios bloqueos),
+        # pero debemos asegurar que no cambien el profesional a otro.
+        # Por simplicidad, asumimos que el serializador o permisos manejan esto,
+        # pero agreguemos una verificación si se cambia el profesional.
         
-        # 1. Get old values
+        # 1. Obtener valores antiguos
         instance = serializer.instance
         old_prof = instance.professional_id
         old_start = instance.start
@@ -590,7 +646,7 @@ class SlotBlockViewSet(viewsets.ModelViewSet):
         
         updated = serializer.save()
         
-        # Free previous slots
+        # Liberar slots anteriores
         Slot.objects.filter(
             professional_id=old_prof,
             start__gte=old_start,
@@ -598,7 +654,7 @@ class SlotBlockViewSet(viewsets.ModelViewSet):
             status="BLOCKED",
         ).update(status="AVAILABLE")
 
-        # Block new slots
+        # Bloquear nuevos slots
         Slot.objects.filter(
             professional_id=updated.professional_id,
             start__gte=updated.start,
@@ -607,7 +663,7 @@ class SlotBlockViewSet(viewsets.ModelViewSet):
         ).update(status="BLOCKED")
 
     def perform_destroy(self, instance):
-        # Restore slots
+        # Restaurar slots
         Slot.objects.filter(
             professional_id=instance.professional_id,
             start__gte=instance.start,
@@ -621,8 +677,8 @@ class SlotBlockViewSet(viewsets.ModelViewSet):
 @api_view(["POST"])
 def aggregated_availability(request):
     """
-    Calculates aggregated availability for multiple services on a specific date.
-    Returns consolidated slots where ALL requested services can be performed.
+    Calcula la disponibilidad agregada para múltiples servicios en una fecha específica.
+    Devuelve slots consolidados donde TODOS los servicios solicitados pueden realizarse.
     """
     services = request.data.get("services", [])
     date = request.data.get("date")
@@ -645,7 +701,7 @@ def aggregated_availability(request):
 @permission_classes([AllowAny])
 def confirm_reservation_via_link(request, token):
     """
-    Public endpoint for confirming a reservation via WhatsApp link.
+    Endpoint público para confirmar una reserva vía enlace de WhatsApp.
     URL: /agenda/confirm/<token>/
     """
     success, message, reservation_id = confirm_reservation_by_token(token)
@@ -657,3 +713,110 @@ def confirm_reservation_via_link(request, token):
         "detail": message,
         "reservation_id": reservation_id
     }, status=status.HTTP_200_OK)
+
+# =====================================================================
+# 6) Dashboard Stats (Professional/Admin)
+# =====================================================================
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def dashboard_stats(request):
+    """
+    Devuelve estadísticas para el panel del profesional.
+    """
+    user = request.user
+    professional = None
+
+    if hasattr(user, 'professional_profile'):
+        professional = user.professional_profile
+    elif user.is_staff:
+        # El admin ve estadísticas globales o puede filtrar por ?professional_id
+        prof_id = request.query_params.get('professional_id')
+        if prof_id:
+            from .models import Professional
+            professional = get_object_or_404(Professional, pk=prof_id)
+    else:
+        return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+
+    # Queryset base
+    qs = Reservation.objects.all()
+    if professional:
+        qs = qs.filter(reservation_slots__professional=professional).distinct()
+
+    now = timezone.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timedelta(days=1)
+    
+    # 1. Citas de hoy
+    today_appointments = qs.filter(
+        reservation_slots__slot__start__range=(today_start, today_end)
+    ).exclude(status='CANCELLED').order_by('reservation_slots__slot__start').distinct()
+
+    # 2. Próxima cita
+    next_appointment = qs.filter(
+        reservation_slots__slot__start__gt=now,
+        status__in=['PENDING', 'CONFIRMED']
+    ).order_by('reservation_slots__slot__start').first()
+
+    # 3. Estadísticas semanales
+    # Calcular inicio/fin de la semana actual (Lunes a Domingo)
+    today_date = now.date()
+    start_week = today_date - timedelta(days=today_date.weekday())
+    end_week = start_week + timedelta(days=7)
+
+    week_qs = qs.filter(
+        reservation_slots__slot__date__range=(start_week, end_week)
+    ).distinct()
+
+    week_total = week_qs.count()
+    week_cancelled = week_qs.filter(status='CANCELLED').count()
+    week_completed = week_qs.filter(status='COMPLETED').count()
+
+    # Serialize data
+    today_data = ReservationDetailSerializer(today_appointments, many=True).data
+    next_data = ReservationDetailSerializer(next_appointment).data if next_appointment else None
+
+    # 4. Feed de actividad reciente
+    from .models import StatusHistory
+    from .serializers import StatusHistorySerializer
+    
+    activity_qs = StatusHistory.objects.all()
+    if professional:
+        activity_qs = activity_qs.filter(reservation__reservation_slots__professional=professional).distinct()
+    
+    # Obtener las últimas 10 actividades
+    recent_activity = activity_qs.select_related('reservation', 'reservation__client').order_by('-timestamp')[:10]
+    activity_data = StatusHistorySerializer(recent_activity, many=True).data
+
+    # 5. Gráfico de actividad semanal (Lun-Dom)
+    # Necesitamos contar reservas por día.
+    # Dado que week_qs ya está filtrado por rango de fechas, podemos iterar o agregar.
+    # La agregación es mejor pero necesitamos asegurar 0s para días faltantes.
+    # Iteremos sobre el rango de 7 días.
+    
+    weekly_activity = []
+    days_map = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+
+    for i in range(7):
+        day_date = start_week + timedelta(days=i)
+        # Count reservations for this specific day (excluding cancelled)
+        # Note: We use reservation_slots__slot__date to match the day
+        day_count = week_qs.filter(
+            reservation_slots__slot__date=day_date
+        ).exclude(status='CANCELLED').count()
+        
+        weekly_activity.append({
+            "day": days_map[i],
+            "citas": day_count
+        })
+
+    return Response({
+        "today_appointments": today_data,
+        "next_appointment": next_data,
+        "stats": {
+            "week_total": week_total,
+            "week_cancelled": week_cancelled,
+            "week_completed": week_completed
+        },
+        "recent_activity": activity_data,
+        "weekly_activity": weekly_activity
+    })

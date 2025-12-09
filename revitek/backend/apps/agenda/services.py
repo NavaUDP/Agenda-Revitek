@@ -18,6 +18,7 @@ from .models import (
     Reservation,
     ReservationSlot,
 )
+# from apps.email_service.services import send_reserva_confirmada, send_reserva_cancelada
 
 
 # ----------------------------------------------------------------------
@@ -25,22 +26,22 @@ from .models import (
 # ----------------------------------------------------------------------
 def compute_total_duration(services: List[dict]) -> int:
     """
-    Given a list of:
+    Dada una lista de:
     {
         "service_id": int,
         "professional_id": int
     }
 
-    Returns total effective minutes
-    considering overrides in ProfessionalService.
-    Optimized to use a single DB query.
+    Devuelve el total de minutos efectivos
+    considerando anulaciones en ProfessionalService.
+    Optimizado para usar una sola consulta a la BD.
     """
     if not services:
         return 0
 
     from django.db.models import Q
     
-    # Build query for all pairs
+    # Construir consulta para todos los pares
     query = Q()
     for s in services:
         query |= Q(service_id=s["service_id"], professional_id=s["professional_id"])
@@ -48,17 +49,17 @@ def compute_total_duration(services: List[dict]) -> int:
     if not query:
         return 0
 
-    # Fetch all needed objects in one go
+    # Obtener todos los objetos necesarios de una vez
     ps_objects = ProfessionalService.objects.select_related("service").filter(query, active=True)
     
-    # Map for O(1) lookup: (service_id, professional_id) -> ProfessionalService
+    # Mapa para búsqueda O(1): (service_id, professional_id) -> ProfessionalService
     ps_map = {(ps.service_id, ps.professional_id): ps for ps in ps_objects}
     
     total = 0
     for s in services:
         key = (s["service_id"], s["professional_id"])
         if key not in ps_map:
-            # Maintain original behavior: raise error if not found
+            # Mantener comportamiento original: lanzar error si no se encuentra
             raise ProfessionalService.DoesNotExist(f"ProfessionalService not found for {key}")
         
         ps = ps_map[key]
@@ -72,8 +73,8 @@ def compute_total_duration(services: List[dict]) -> int:
 # ----------------------------------------------------------------------
 def get_work_schedule_for_date(professional_id: int, target_date: date) -> Optional[WorkSchedule]:
     """
-    Returns the active WorkSchedule for the given weekday.
-    Monday = 0 … Sunday = 6
+    Devuelve el WorkSchedule activo para el día de la semana dado.
+    Lunes = 0 … Domingo = 6
     """
     weekday = target_date.weekday()
     try:
@@ -110,8 +111,8 @@ def get_exceptions_for_day(professional_id: int, target_date: date):
 # ----------------------------------------------------------------------
 def generate_raw_slots(start_dt: datetime, end_dt: datetime, slot_min: int = 60):
     """
-    Generates the base chronological sequence of slots for the day.
-    Yields (start, end)
+    Genera la secuencia cronológica base de slots para el día.
+    Devuelve (inicio, fin)
     """
     slots = []
     current = start_dt
@@ -124,26 +125,20 @@ def generate_raw_slots(start_dt: datetime, end_dt: datetime, slot_min: int = 60)
 
 
 # ----------------------------------------------------------------------
-# 6) [REMOVED] Obsolete filter functions (logic moved to generate_daily_slots)
-# ----------------------------------------------------------------------
-
-
-
-# ----------------------------------------------------------------------
 # 9) Generar slots finales y persistirlos en DB
 # ----------------------------------------------------------------------
 def generate_daily_slots(professional_id: int, target_date: date, slot_min: int = 60):
     """
-    This is the REAL slot generator with full logic:
-    - Applies WorkSchedule for day
-    - Removes breaks, exceptions, and blocks in a single pass
-    - Saves final slots in DB
-    - Cleans up stale AVAILABLE slots that are no longer valid
+    Este es el generador de slots REAL con lógica completa:
+    - Aplica WorkSchedule para el día
+    - Elimina breaks, excepciones y bloqueos en una sola pasada
+    - Guarda slots finales en BD
+    - Limpia slots AVAILABLE obsoletos que ya no son válidos
     """
 
     ws = get_work_schedule_for_date(professional_id, target_date)
     
-    # If no schedule, we should probably clean up ALL available slots for this day
+    # Si no hay horario, probablemente deberíamos limpiar TODOS los slots disponibles para este día
     if not ws:
         Slot.objects.filter(
             professional_id=professional_id,
@@ -163,7 +158,7 @@ def generate_daily_slots(professional_id: int, target_date: date, slot_min: int 
     # 1) Generar slots crudos
     raw_slots = generate_raw_slots(start_dt, end_dt, slot_min)
 
-    # 2) Collect all busy intervals (breaks, exceptions, blocks)
+    # 2) Recolectar todos los intervalos ocupados (breaks, excepciones, bloqueos)
     busy_intervals = []
 
     # Breaks
@@ -194,12 +189,12 @@ def generate_daily_slots(professional_id: int, target_date: date, slot_min: int 
              bl_end = timezone.make_aware(bl_end)
         busy_intervals.append((bl_start, bl_end))
 
-    # 3) Filter slots in one pass
+    # 3) Filtrar slots en una sola pasada
     filtered = []
     for start, end in raw_slots:
         is_blocked = False
         for b_start, b_end in busy_intervals:
-            # Check overlap: (StartA < EndB) and (EndA > StartB)
+            # Verificar superposición: (StartA < EndB) y (EndA > StartB)
             if start < b_end and end > b_start:
                 is_blocked = True
                 break
@@ -223,7 +218,7 @@ def generate_daily_slots(professional_id: int, target_date: date, slot_min: int 
         )
         slots_created.append(slot)
 
-    # 5) Limpiar slots AVAILABLE que ya no son válidos (stale)
+    # 5) Limpiar slots AVAILABLE que ya no son válidos (obsoletos)
     existing_slots = Slot.objects.filter(
         professional_id=professional_id,
         date=target_date,
@@ -261,10 +256,10 @@ def get_available_slots(professional_id=None, date_filter=None):
 @transaction.atomic
 def cancel_reservation(reservation_id: int, cancelled_by: str = "admin"):
     """
-    Cancels a reservation:
-    - Marks reservation as CANCELLED
-    - Frees its slots
-    - Triggers slot regeneration for affected dates to ensure consistency
+    Cancela una reserva:
+    - Marca la reserva como CANCELADA
+    - Libera sus slots
+    - Dispara regeneración de slots para fechas afectadas para asegurar consistencia
     """
     reservation = Reservation.objects.select_for_update().get(pk=reservation_id)
 
@@ -274,7 +269,7 @@ def cancel_reservation(reservation_id: int, cancelled_by: str = "admin"):
 
     refresh_targets = set()
 
-    # free slots
+    # liberar slots
     for rs in reservation.reservation_slots.all():
         slot = rs.slot
         slot.status = "AVAILABLE"
@@ -287,6 +282,16 @@ def cancel_reservation(reservation_id: int, cancelled_by: str = "admin"):
     # (por ejemplo, si el horario del profesional cambió mientras estaba reservado)
     for prof_id, d in refresh_targets:
         generate_daily_slots(prof_id, d)
+
+    for prof_id, d in refresh_targets:
+        generate_daily_slots(prof_id, d)
+
+    # Enviar correo de cancelación (DESACTIVADO POR AHORA)
+    # try:
+    #     send_reserva_cancelada(reservation)
+    # except Exception as e:
+         # No fallar la transacción si el correo falla
+    #     pass
 
     return reservation
 
@@ -348,8 +353,8 @@ def filter_slots_by_service(slots, services, target_date):
 
 class AvailabilityCalculator:
     """
-    Calculates consolidated availability for multiple services.
-    Refactored from monolithic function to improve readability and maintainability.
+    Calcula disponibilidad consolidada para múltiples servicios.
+    Refactorizado de función monolítica para mejorar legibilidad y mantenibilidad.
     """
     def __init__(self, service_ids, date_str):
         self.service_ids = service_ids
@@ -360,36 +365,40 @@ class AvailabilityCalculator:
         
         # State
         self.qualified_professionals = set()
-        self.valid_start_times = None # None means "any time"
+        self.valid_start_times = None # None significa "cualquier hora"
         self.slots_by_prof = {}
         self.filtered_slots = []
+        self.daily_loads = {} # Para almacenar cargas diarias de profesionales
 
     def compute(self):
         if not self.service_ids:
             return []
 
-        # 1. Find professionals who can perform ALL services
+        # 1. Encontrar profesionales que puedan realizar TODOS los servicios
         if not self._find_qualified_professionals():
             return []
 
-        # 2. Determine common allowed start times (intersection of rules)
+        # 2. Determinar horas de inicio permitidas comunes (intersección de reglas)
         if not self._determine_common_time_rules():
             return []
 
-        # 3. Fetch available slots for these professionals
+        # 3. Obtener slots disponibles para estos profesionales
         self._fetch_candidate_slots()
 
-        # 4. Filter slots by duration and continuity
+        # 4. Filtrar slots por duración y continuidad
         self._filter_slots_by_duration_and_continuity()
 
-        # 5. Group and format results
+        # 5. Calcular cargas diarias para profesionales calificados
+        self._calculate_daily_loads()
+
+        # 6. Agrupar y formatear resultados
         return self._format_results()
 
     def _find_qualified_professionals(self):
         """
-        Identifies professionals assigned to ALL requested services.
+        Identifica profesionales asignados a TODOS los servicios solicitados.
         """
-        # Start with professionals for the first service
+        # Comenzar con profesionales para el primer servicio
         first_service_id = self.service_ids[0]
         candidates = set(
             ProfessionalService.objects.filter(
@@ -398,7 +407,7 @@ class AvailabilityCalculator:
             ).values_list('professional_id', flat=True)
         )
 
-        # Intersect with professionals for remaining services
+        # Intersectar con profesionales para los servicios restantes
         for service_id in self.service_ids[1:]:
             next_candidates = set(
                 ProfessionalService.objects.filter(
@@ -416,8 +425,8 @@ class AvailabilityCalculator:
 
     def _determine_common_time_rules(self):
         """
-        Calculates the intersection of allowed start times for all services.
-        Returns False if intersection is empty (impossible to book).
+        Calcula la intersección de horas de inicio permitidas para todos los servicios.
+        Devuelve False si la intersección está vacía (imposible reservar).
         """
         from apps.catalog.models import ServiceTimeRule
 
@@ -430,27 +439,27 @@ class AvailabilityCalculator:
                 )
                 allowed_times_sets.append(set(time_rule.allowed_times))
             except ServiceTimeRule.DoesNotExist:
-                # No restriction for this service
+                # Sin restricción para este servicio
                 pass
 
         if allowed_times_sets:
-            # Intersect all sets
+            # Intersectar todos los conjuntos
             common_times = allowed_times_sets[0]
             for time_set in allowed_times_sets[1:]:
                 common_times &= time_set
             
             if not common_times:
-                return False # No common times
+                return False # Sin horas comunes
             
             self.valid_start_times = common_times
         else:
-            self.valid_start_times = None # Any time allowed
+            self.valid_start_times = None # Cualquier hora permitida
             
         return True
 
     def _fetch_candidate_slots(self):
         """
-        Fetches AVAILABLE slots for qualified professionals on the target date.
+        Obtiene slots DISPONIBLES para profesionales calificados en la fecha objetivo.
         """
         slots = (
             Slot.objects.filter(
@@ -462,7 +471,7 @@ class AvailabilityCalculator:
             .select_related("professional")
         )
 
-        # Group by professional
+        # Agrupar por profesional
         for slot in slots:
             if slot.professional_id not in self.slots_by_prof:
                 self.slots_by_prof[slot.professional_id] = []
@@ -470,38 +479,34 @@ class AvailabilityCalculator:
 
     def _filter_slots_by_duration_and_continuity(self):
         """
-        Checks if consecutive slots exist to cover the total required duration.
+        Verifica si existen slots consecutivos para cubrir la duración total requerida.
         """
         for prof_id, prof_slots in self.slots_by_prof.items():
             total_duration = self._calculate_total_duration_for_prof(prof_id)
             
-            # Sort slots by time (should be already sorted by DB, but safety first)
+            # Ordenar slots por tiempo (debería estar ordenado por BD, pero seguridad primero)
             prof_slots.sort(key=lambda s: s.start)
 
             for i, start_slot in enumerate(prof_slots):
-                # 1. Check Time Rule
+                # 1. Verificar Regla de Tiempo
                 if not self._check_time_rule(start_slot):
                     continue
 
-                # 2. Check Duration & Continuity
+                # 2. Verificar Duración y Continuidad
                 if self._check_continuity(prof_slots, i, total_duration):
                     self.filtered_slots.append(start_slot)
 
     def _calculate_total_duration_for_prof(self, prof_id):
         """
-        Calculates total duration for the requested services for a specific professional.
+        Calcula la duración total para los servicios solicitados para un profesional específico.
         """
         total = 0
-        # We could optimize this by pre-fetching ProfessionalServices in __init__ 
-        # but for now we rely on the fact that we already filtered professionals.
-        # To avoid N+1 inside this loop, we could fetch all relevant ProfessionalServices once.
-        # But let's keep it simple for this refactor step or use the optimized compute_total_duration logic?
-        # Actually, let's do a quick fetch here or assume standard duration if not critical.
-        # Better: fetch all relevant ProfessionalServices for these qualified pros and services.
-        
-        # For this specific method, let's just query. It's N queries where N = qualified_pros * services.
-        # Optimization: Fetch all PS for qualified_pros AND service_ids in one go in __init__.
-        # For now, let's leave the query but note it.
+        # Podríamos optimizar esto pre-obteniendo ProfessionalServices en __init__ 
+        # pero por ahora confiamos en que ya filtramos profesionales.
+        # Para evitar N+1 dentro de este bucle, podríamos obtener todos los ProfessionalServices relevantes una vez.
+        # Pero mantengámoslo simple para este paso de refactorización o usemos la lógica optimizada de compute_total_duration?
+        # Mejor: obtener todos los PS relevantes para estos pros calificados y servicios.
+        # Por ahora, dejemos la consulta pero tomemos nota.
         
         for s_id in self.service_ids:
             try:
@@ -533,13 +538,57 @@ class AvailabilityCalculator:
         
         for subsequent_slot in slots[start_index:]:
             if subsequent_slot.start > current_check_start:
-                return False # Gap found
+                return False # Brecha encontrada
             
             current_check_start = subsequent_slot.end
             if current_check_start >= required_end_time:
                 return True
                 
         return False
+
+    def _calculate_daily_loads(self):
+        """
+        Calcula el número de reservas activas para cada profesional calificado en la fecha objetivo.
+        Almacena el resultado en self.daily_loads.
+        """
+        from django.db.models import Count, Q
+        
+        self.daily_loads = {}
+        
+        if not self.qualified_professionals:
+            return
+
+        # Contar reservas que tienen al menos un slot en esta fecha
+        # Filtramos por reservation_slots__slot__date=self.date
+        # Y status en [CONFIRMED, PENDING, IN_PROGRESS, RECONFIRMED, WAITING_CLIENT]
+        
+        active_statuses = ['CONFIRMED', 'PENDING', 'IN_PROGRESS', 'RECONFIRMED', 'WAITING_CLIENT']
+        
+        # Consultamos objetos Reservation, filtramos por fecha y estado, y agregamos por profesional
+        # Nota: Una reserva tiene múltiples slots. Queremos contar RESERVAS, no slots.
+        # Pero necesitamos agrupar por profesional.
+        # Dado que una reserva está vinculada a un profesional vía ReservationSlot, y todos los slots de una reserva
+        # suelen ser con el mismo profesional (impuesto por nuestra lógica), podemos agrupar por reservation_slots__professional.
+        
+        # Sin embargo, ¿una reserva podría abarcar múltiples días? 
+        # El requisito dice "reservas asignadas en la fecha solicitada".
+        # Si una reserva comienza ayer y termina mañana, ¿cuenta?
+        # Usualmente nos importa la fecha de inicio.
+        # Mantengámonos en "reservas que tienen slots en esta fecha".
+        
+        counts = (
+            Reservation.objects
+            .filter(
+                reservation_slots__slot__date=self.date,
+                reservation_slots__professional_id__in=self.qualified_professionals,
+                status__in=active_statuses
+            )
+            .values('reservation_slots__professional_id')
+            .annotate(count=Count('id', distinct=True))
+        )
+        
+        for entry in counts:
+            self.daily_loads[entry['reservation_slots__professional_id']] = entry['count']
 
     def _format_results(self):
         slots_by_time = {}
@@ -562,12 +611,22 @@ class AvailabilityCalculator:
             slots_by_time[key]["professionals"].append(slot.professional_id)
             slots_by_time[key]["slot_ids"].append(slot.id)
 
+        # Sort professionals by load for each slot
+        for key in slots_by_time:
+            # Ordenar por carga (asc), luego por ID (asc) para determinismo
+            # Vamos a unirlos, ordenar y separar.
+            combined = list(zip(slots_by_time[key]["professionals"], slots_by_time[key]["slot_ids"]))
+            combined.sort(key=lambda x: (self.daily_loads.get(x[0], 0), x[0]))
+            
+            slots_by_time[key]["professionals"] = [x[0] for x in combined]
+            slots_by_time[key]["slot_ids"] = [x[1] for x in combined]
+
         return sorted(slots_by_time.values(), key=lambda x: x["inicio"])
 
 
 def compute_aggregated_availability(service_ids, date_str):
     """
-    Wrapper for AvailabilityCalculator.
+    Envoltorio para AvailabilityCalculator.
     """
     from datetime import datetime
     from .models import Slot, ProfessionalService
@@ -581,45 +640,47 @@ def compute_aggregated_availability(service_ids, date_str):
 # ----------------------------------------------------------------------
 # 15) Confirmar reserva por token (Lógica de Negocio)
 # ----------------------------------------------------------------------
+@transaction.atomic
 def confirm_reservation_by_token(token: str):
     """
-    Validates token and confirms reservation.
-    Returns (success, message, reservation_id)
+    Valida token y confirma reserva.
+    Devuelve (éxito, mensaje, reservation_id)
     """
     from .models import Reservation, StatusHistory
     from django.utils import timezone
     
     try:
-        reservation = Reservation.objects.get(confirmation_token=token)
+        # Usar select_for_update para bloquear la fila y prevenir condiciones de carrera
+        reservation = Reservation.objects.select_for_update().get(confirmation_token=token)
     except Reservation.DoesNotExist:
         return False, "Link de confirmación inválido o expirado.", None
     
-    # Check if token has expired
+    # Verificar si el token ha expirado
     if reservation.token_expires_at and reservation.token_expires_at < timezone.now():
         return False, "Este link de confirmación ha expirado. Por favor contacta al administrador.", None
     
-    # Check if already confirmed/reconfirmed
+    # Verificar si ya está confirmada/reconfirmada
     if reservation.status in ["CONFIRMED", "RECONFIRMED"]:
         return True, "Esta reserva ya fue confirmada anteriormente.", reservation.id
         
-    # Check if cancelled (e.g. expired)
+    # Verificar si está cancelada (ej. expirada)
     if reservation.status == "CANCELLED":
         return False, "Esta reserva ha sido cancelada o expiró. Por favor contacta al administrador.", None
     
-    # Update status to CONFIRMED (Standardized)
+    # Actualizar estado a CONFIRMED (Estandarizado)
     old_status = reservation.status
     reservation.status = "CONFIRMED"
     
-    # Flag to prevent signal loop
+    # Bandera para prevenir bucle de señales
     reservation._confirmed_via_link = True
     
     reservation.save(update_fields=["status"])
     
-    # Log history
+    # Registrar historial
     StatusHistory.objects.create(
         reservation=reservation,
         status="RECONFIRMED",
-        note=f"Re-confirmed by client via WhatsApp link (previous status: {old_status})"
+        note=f"Reconfirmada por cliente vía WhatsApp (estado anterior: {old_status})"
     )
     
     return True, "¡Reserva confirmada exitosamente!", reservation.id
@@ -630,11 +691,11 @@ def confirm_reservation_by_token(token: str):
 # ----------------------------------------------------------------------
 def create_reservation_transaction(validated_data):
     """
-    Handles the complex logic of creating a reservation:
-    - Client creation/update
-    - Vehicle/Address creation
-    - Slot validation & locking
-    - Reservation creation & linking
+    Maneja la lógica compleja de crear una reserva:
+    - Creación/actualización de cliente
+    - Creación de Vehículo/Dirección
+    - Validación y bloqueo de slots
+    - Creación y vinculación de reserva
     """
     from django.db import transaction
     from django.shortcuts import get_object_or_404
@@ -676,7 +737,7 @@ def create_reservation_transaction(validated_data):
                     client.first_name = first_name
                     changed_fields.append("first_name")
                 if last_name and last_name != client.last_name:
-                    # Safeguard: Don't overwrite with masked last name (e.g. "P.")
+                    # Salvaguarda: No sobrescribir con apellido enmascarado (ej. "P.")
                     is_masked = last_name.endswith('.') and len(last_name) <= 3 and client.last_name.startswith(last_name[:-1])
                     if not is_masked:
                         client.last_name = last_name
@@ -695,7 +756,7 @@ def create_reservation_transaction(validated_data):
         vehicle_obj = None
         if vehicle_data and client:
             plate = (vehicle_data.get("license_plate") or vehicle_data.get("plate") or "").strip().upper()
-            # Safeguard: Ignore masked plates (containing '*')
+            # Salvaguarda: Ignorar patentes enmascaradas (conteniendo '*')
             if plate and '*' not in plate:
                 vehicle_defaults = {
                     "owner": client,
@@ -717,16 +778,16 @@ def create_reservation_transaction(validated_data):
         if address_data and client:
             alias = (address_data.get("alias") or "Principal").strip()
             street = (address_data.get("street") or "").strip()
-            number = (address_data.get("number") or "").strip() # Initialize number here
+            number = (address_data.get("number") or "").strip() # Inicializar número aquí
             
-            # Safeguard: Ignore masked streets
+            # Salvaguarda: Ignorar calles enmascaradas
             if street and '*' not in street:
-                # If street is not masked, then we can use the number
+                # Si la calle no está enmascarada, entonces podemos usar el número
                 number = (address_data.get("number") or "").strip()
             else:
-                # If street is masked or empty, we should not use the number from input
-                street = "" # Effectively ignore the street
-                number = "" # And ignore the number
+                # Si la calle está enmascarada o vacía, no deberíamos usar el número de la entrada
+                street = "" # Efectivamente ignorar la calle
+                number = "" # E ignorar el número
             
             commune = (address_data.get("commune") or "").strip()
             region = (address_data.get("region") or "").strip()
@@ -738,21 +799,23 @@ def create_reservation_transaction(validated_data):
                 if commune_id:
                         commune_obj = Commune.objects.filter(id=commune_id).first()
                 
-                # Fallback: try to find by name if provided (optional, but good for robustness)
-                if not commune_obj and commune:
-                        commune_obj = Commune.objects.filter(name__iexact=commune).first()
+                # Try to find existing address to update or create new
+                address_defaults = {
+                    "street": street,
+                    "number": number,
+                    "complement": complement,
+                    "commune": commune_obj
+                }
+                
+                address_obj, _ = Address.objects.update_or_create(
+                    owner=client,
+                    alias=alias,
+                    defaults=address_defaults
+                )
 
-                if commune_obj:
-                    address_obj, _ = Address.objects.get_or_create(
-                        owner=client,
-                        alias=alias,
-                        defaults={
-                            "street": street,
-                            "number": number,
-                            "commune": commune_obj,
-                            "complement": complement,
-                        },
-                    )
+
+
+
 
         # ----------------------------------------------------------
         # 4) VALIDACIÓN DE SLOTS Y SERVICIOS
@@ -865,8 +928,15 @@ def create_reservation_transaction(validated_data):
         StatusHistory.objects.create(
             reservation=reservation,
             status="PENDING",
-            note="Reservation created (Pending Confirmation)",
+            note="Reserva creada (Pendiente de confirmación)",
         )
+
+        # Send Confirmation Email (DISABLED FOR NOW)
+        # try:
+        #     send_reserva_confirmada(reservation)
+        # except Exception as e:
+        #     # Log error but don't fail transaction
+        #     pass
 
         return reservation
 

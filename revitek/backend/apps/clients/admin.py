@@ -5,7 +5,7 @@ from .models import User, Region, Commune, Vehicle, Address
 
 
 # ==============================
-#   CONFIGURACIÓN DEL USER
+#   CONFIGURACIÓN DEL USUARIO
 # ==============================
 
 @admin.register(User)

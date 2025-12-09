@@ -1,0 +1,12 @@
+{% extends "email_service/base_email.html" %}
+
+{% block title %}Cancelación de Reserva{% endblock %}
+
+{% block content %}
+<h2>Hola {{ cliente.first_name }},</h2>
+<p>Te informamos que tu reserva <strong>#{{ reserva.id }}</strong> ha sido cancelada.</p>
+
+<p>Si esto fue un error o deseas reagendar, por favor visita nuestro sitio web o contáctanos directamente.</p>
+
+<a href="#" class="button">Agendar Nueva Cita</a>
+{% endblock %}
