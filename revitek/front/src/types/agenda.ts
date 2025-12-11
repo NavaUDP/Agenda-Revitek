@@ -21,6 +21,16 @@ export interface ReservationSlotSummary {
     professional_id: number;
 }
 
+export interface ReservationSlotDetail {
+    slot: {
+        id: number;
+        start: string;
+        end: string;
+        date: string;
+    };
+    professional_id: number;
+}
+
 export interface ClientInfo {
     id: number;
     email: string;
@@ -57,6 +67,7 @@ export interface ReservationDetailed {
     cancelled_by: string | null;
     services: ReservationServiceItem[];
     slots_summary: ReservationSlotSummary | null;
+    reservation_slots?: ReservationSlotDetail[];
     client_info: ClientInfo | null;
     address: Address | null;
     vehicle: Vehicle | null;

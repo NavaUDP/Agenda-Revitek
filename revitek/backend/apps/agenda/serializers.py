@@ -268,9 +268,26 @@ class ReservationSlotSummarySerializer(serializers.Serializer):
     professional_id = serializers.IntegerField()
 
 
+class ReservationSlotDetailSerializer(serializers.Serializer):
+    """
+    Detalle de cada slot individual en una reserva.
+    """
+    slot = serializers.SerializerMethodField()
+    professional_id = serializers.IntegerField()
+    
+    def get_slot(self, obj):
+        return {
+            "id": obj.slot.id,
+            "start": obj.slot.start,
+            "end": obj.slot.end,
+            "date": obj.slot.date,
+        }
+
+
 class ReservationDetailSerializer(serializers.ModelSerializer):
     services = ReservationServiceDetailSerializer(many=True, read_only=True)
     slots_summary = serializers.SerializerMethodField()
+    reservation_slots = serializers.SerializerMethodField()
     client_info = serializers.SerializerMethodField()
     address = serializers.SerializerMethodField()
     vehicle = serializers.SerializerMethodField()
@@ -288,6 +305,7 @@ class ReservationDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "services",
             "slots_summary",
+            "reservation_slots",
             "client_info",
             "address",
             "vehicle",
@@ -324,6 +342,16 @@ class ReservationDetailSerializer(serializers.ModelSerializer):
             "end": last_rs.slot.end,
             "professional_id": first_rs.professional_id,
         }
+
+    def get_reservation_slots(self, obj):
+        """
+        Devuelve la lista completa de slots asociados a la reserva.
+        """
+        qs = ReservationSlot.objects.filter(
+            reservation=obj
+        ).select_related("slot").order_by("slot__start")
+        
+        return ReservationSlotDetailSerializer(qs, many=True).data
 
     def get_address(self, obj):
         addr = obj.address
