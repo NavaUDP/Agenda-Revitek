@@ -590,19 +590,22 @@ class SlotBlockViewSet(viewsets.ModelViewSet):
         user = self.request.user
         qs = SlotBlock.objects.all()
         
-        # RBAC
+        # RBAC: Los profesionales ven todos los bloqueos de su agenda (creados por admin o por ellos)
         if not user.is_staff:
             if hasattr(user, 'professional_profile'):
+                # Filtrar bloqueos que pertenecen a este profesional
+                # (sin importar quién los creó - admin o el mismo profesional)
                 qs = qs.filter(professional=user.professional_profile)
             else:
                 return SlotBlock.objects.none()
+        else:
+            # Si es admin, puede filtrar por professional_id
+            professional_id = self.request.query_params.get("professional_id")
+            if professional_id:
+                qs = qs.filter(professional_id=professional_id)
 
-        # Filters
-        professional_id = self.request.query_params.get("professional_id")
+        # Filtro por fecha (aplica para todos los usuarios)
         date_str = self.request.query_params.get("date")
-        
-        if professional_id:
-            qs = qs.filter(professional_id=professional_id)
         if date_str:
             qs = qs.filter(date=date_str)
             

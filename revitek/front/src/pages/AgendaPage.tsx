@@ -235,7 +235,7 @@ const AgendaPage = () => {
   // CONFIRMAR CITA O BLOQUEO
   // ---------------------------
   const handleConfirmAppointment = async (data: AdminBookingData) => {
-    if (!selectionInfo || !selectionInfo.resource) {
+    if (!selectionInfo) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -245,18 +245,45 @@ const AgendaPage = () => {
       return;
     }
 
+    // Determinar el ID del profesional:
+    // 1. Si hay resource (vista resourceTimeGridDay), usar el resource.id
+    // 2. Si no hay resource pero hay selectedProfessionalId (vista timeGridWeek), usar ese
+    let professionalId: number;
+    let resourceId: string;
+
+    if (selectionInfo.resource) {
+      professionalId = parseInt(selectionInfo.resource.id, 10);
+      resourceId = selectionInfo.resource.id;
+    } else if (selectedProfessionalId) {
+      professionalId = parseInt(selectedProfessionalId, 10);
+      resourceId = selectedProfessionalId;
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se ha seleccionado un profesional. Por favor, selecciona un profesional en el panel lateral.",
+      });
+      setIsModalOpen(false);
+      return;
+    }
+
+    if (isNaN(professionalId)) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "ID de profesional inválido.",
+      });
+      setIsModalOpen(false);
+      return;
+    }
+
     setLocalLoading(true);
 
     try {
-      const professionalId = parseInt(selectionInfo.resource.id, 10);
-      if (isNaN(professionalId)) {
-        throw new Error("ID de profesional inválido.");
-      }
-
       if (data.type === 'blocked') {
-        await handleCreateBlock(data, professionalId);
+        await handleCreateBlock(data, professionalId, resourceId);
       } else {
-        await handleCreateReservation(data, professionalId);
+        await handleCreateReservation(data, professionalId, resourceId);
       }
 
     } catch (error: any) {
@@ -273,9 +300,7 @@ const AgendaPage = () => {
     }
   };
 
-  const handleCreateBlock = async (data: AdminBookingData, professionalId: number) => {
-    if (!selectionInfo?.resource) return;
-
+  const handleCreateBlock = async (data: AdminBookingData, professionalId: number, resourceId: string) => {
     if (data.aplicar_a_rango && data.fecha_fin) {
       // Bloqueo en rango de días
       const fechaInicio = new Date(data.fecha);
@@ -298,7 +323,7 @@ const AgendaPage = () => {
           });
 
           bloqueosCreados.push(blockResponse);
-          addBlockEventToCalendar(blockResponse, selectionInfo.resource.id, data.razonBloqueo, inicioISO, finISO);
+          addBlockEventToCalendar(blockResponse, resourceId, data.razonBloqueo, inicioISO, finISO);
         } catch (error) {
           console.error(`Error bloqueando fecha ${fechaStr}:`, error);
         }
@@ -324,7 +349,7 @@ const AgendaPage = () => {
         reason: data.razonBloqueo,
       });
 
-      addBlockEventToCalendar(blockResponse, selectionInfo.resource.id, data.razonBloqueo, inicioISO, finISO);
+      addBlockEventToCalendar(blockResponse, resourceId, data.razonBloqueo, inicioISO, finISO);
 
       toast({
         title: "Horario Bloqueado",
@@ -351,9 +376,7 @@ const AgendaPage = () => {
     setEvents(prevEvents => [...prevEvents, newBlockedEvent]);
   };
 
-  const handleCreateReservation = async (data: AdminBookingData, professionalId: number) => {
-    if (!selectionInfo?.resource) return;
-
+  const handleCreateReservation = async (data: AdminBookingData, professionalId: number, resourceId: string) => {
     if (!data.servicios || data.servicios.length === 0) {
       throw new Error("Debes seleccionar al menos un servicio.");
     }
@@ -367,8 +390,9 @@ const AgendaPage = () => {
     const slotId = await findMatchingSlotId(professionalId, startTime);
 
     if (!slotId) {
+      const professionalName = resources.find(r => r.id === resourceId)?.title || `Profesional #${professionalId}`;
       throw new Error(
-        `No se encontró un slot disponible para ${selectionInfo.resource.title} en el horario seleccionado.`
+        `No se encontró un slot disponible para ${professionalName} en el horario seleccionado.`
       );
     }
 
@@ -404,9 +428,9 @@ const AgendaPage = () => {
       title: `${data.cliente?.nombre} ${data.cliente?.apellido}`,
       start: inicioISO,
       end: finISO,
-      resourceId: selectionInfo.resource.id,
-      backgroundColor: resources.find(r => r.id === selectionInfo.resource?.id)?.eventBackgroundColor || '#3b82f6',
-      borderColor: resources.find(r => r.id === selectionInfo.resource?.id)?.eventBorderColor || '#3b82f6',
+      resourceId: resourceId,
+      backgroundColor: resources.find(r => r.id === resourceId)?.eventBackgroundColor || '#3b82f6',
+      borderColor: resources.find(r => r.id === resourceId)?.eventBorderColor || '#3b82f6',
       extendedProps: {
         type: 'appointment',
         client: `${data.cliente?.nombre} ${data.cliente?.apellido}`,

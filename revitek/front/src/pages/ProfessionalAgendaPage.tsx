@@ -63,8 +63,8 @@ const ProfessionalAgendaPage = () => {
                     borderColor = '#dc2626';
                 }
 
-                const clientName = `${res.client?.first_name || ''} ${res.client?.last_name || ''}`.trim();
-                const servicesStr = res.services?.map(s => s.name).join(', ') || 'Sin servicios';
+                const clientName = `${res.client_info?.first_name || ''} ${res.client_info?.last_name || ''}`.trim();
+                const servicesStr = res.services?.map(s => s.service_name).join(', ') || 'Sin servicios';
 
                 return {
                     id: `reservation-${res.id}`,
