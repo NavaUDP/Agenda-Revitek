@@ -5,17 +5,21 @@ def verify_recaptcha(token: str) -> bool:
     """
     Verificar token de reCAPTCHA v3 con Google.
     Devuelve True si la verificación es exitosa y el puntaje > 0.5
+    En desarrollo (sin RECAPTCHA_SECRET_KEY configurado), siempre retorna True.
     """
     print(f"🔍 Verificando reCAPTCHA... Token recibido: {token[:20] if token else 'None'}...")
     
+    secret_key = getattr(settings, 'RECAPTCHA_SECRET_KEY', None)
+    
+    # Si no hay secret_key configurado o es el valor de desarrollo, permitir siempre
+    if not secret_key or secret_key == '6LfVjiYsAAAAAGPNqrlXI8KlFfzrFv8oS7iDb2dU':
+        print("✅ reCAPTCHA deshabilitado (modo desarrollo) - permitiendo acceso")
+        return True
+    
+    # Si reCAPTCHA está habilitado pero no hay token, rechazar
     if not token:
         print("❌ No se recibió token de reCAPTCHA")
         return False
-    
-    secret_key = getattr(settings, 'RECAPTCHA_SECRET_KEY', None)
-    if not secret_key:
-        # Si no está configurado, permitir (para desarrollo)
-        return True
     
     try:
         response = requests.post(
