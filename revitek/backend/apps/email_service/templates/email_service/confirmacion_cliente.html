@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmación de Reserva - Revitek</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .content {
+            padding: 30px 25px;
+        }
+        .greeting {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .info-box {
+            background-color: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-item {
+            margin: 12px 0;
+            font-size: 15px;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #555;
+            display: inline-block;
+            width: 140px;
+        }
+        .info-value {
+            color: #333;
+        }
+        .service-list {
+            background-color: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .service-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+            color: #444;
+        }
+        .service-item:last-child {
+            border-bottom: none;
+        }
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .confirm-button {
+            display: inline-block;
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 16px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+        }
+        .confirm-button:hover {
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+            transform: translateY(-2px);
+        }
+        .alert-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        .alert-box strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .footer-links {
+            margin: 10px 0;
+        }
+        .footer-links a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        .expiration-notice {
+            text-align: center;
+            color: #888;
+            font-size: 13px;
+            margin-top: 15px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎉 ¡Reserva Solicitada!</h1>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <div class="greeting">
+                Hola <strong>{{ cliente_nombre }}</strong>,
+            </div>
+
+            <p style="color: #555; line-height: 1.6;">
+                Tu solicitud de reserva ha sido recibida exitosamente. Para confirmar tu visita a <strong>Revitek</strong>, 
+                por favor haz clic en el botón de abajo.
+            </p>
+
+            <!-- Reservation Details -->
+            <div class="info-box">
+                <h3 style="margin-top: 0; color: #667eea;">📋 Detalles de tu Reserva</h3>
+                
+                <div class="info-item">
+                    <span class="info-label">📅 Fecha:</span>
+                    <span class="info-value">{{ fecha }}</span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">🕐 Hora:</span>
+                    <span class="info-value">{{ hora }}</span>
+                </div>
+
+                <div class="info-item">
+                    <span class="info-label">👨‍🔧 Profesional:</span>
+                    <span class="info-value">{{ profesional_nombre }}</span>
+                </div>
+
+                <div class="info-item">
+                    <span class="info-label">📞 Teléfono:</span>
+                    <span class="info-value">{{ cliente_telefono }}</span>
+                </div>
+
+                <div class="info-item">
+                    <span class="info-label">🚗 Vehículo:</span>
+                    <span class="info-value">{{ vehiculo }}</span>
+                </div>
+            </div>
+
+            <!-- Services List -->
+            <h3 style="color: #667eea; margin-top: 25px;">🔧 Servicios Solicitados</h3>
+            <div class="service-list">
+                {% for servicio in servicios %}
+                <div class="service-item">
+                    ✓ {{ servicio.service.name }}
+                    {% if servicio.service.duration %}
+                    ({{ servicio.service.duration }} min)
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Confirmation Button -->
+            <div class="button-container">
+                <a href="{{ confirmation_link }}" class="confirm-button">
+                    ✅ Confirmar mi Reserva
+                </a>
+            </div>
+
+            <div class="expiration-notice">
+                ⏰ Este enlace expira en 48 horas
+            </div>
+
+            <!-- Important Alert -->
+            <div class="alert-box">
+                <strong>⚠️ Importante:</strong>
+                Debes confirmar tu reserva haciendo clic en el botón de arriba. Si no confirmas, 
+                tu reserva será cancelada automáticamente.
+            </div>
+
+            <p style="color: #666; font-size: 14px; line-height: 1.6; margin-top: 25px;">
+                Si tienes alguna pregunta o necesitas modificar tu reserva, no dudes en contactarnos.
+            </p>
+
+            <p style="color: #666; font-size: 14px;">
+                <strong>Equipo Revitek</strong><br>
+                📧 agendarevitek@gmail.com<br>
+                📱 {{ telefono_taller }}
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p style="margin: 5px 0;">
+                <strong>Revitek - Taller Mecánico</strong>
+            </p>
+            <p style="margin: 5px 0;">
+                {{ direccion_taller }}
+            </p>
+            <div class="footer-links">
+                <a href="{{ frontend_url }}">Sitio Web</a> |
+                <a href="{{ frontend_url }}/agendar">Agendar Cita</a>
+            </div>
+            <p style="margin-top: 15px; color: #999; font-size: 12px;">
+                Este es un correo automático, por favor no responder directamente.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

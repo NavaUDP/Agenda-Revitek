@@ -36,9 +36,14 @@ function ClientBookingPage() {
             <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur z-50">
                 <div className="container mx-auto p-4 flex justify-between items-center">
                     <h1 className="text-2xl font-bold text-primary">Agenda tu Servicio</h1>
-                    <Button asChild variant="outline">
-                        <Link to="/">Volver al Inicio</Link>
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button asChild variant="ghost" size="sm">
+                            <Link to="/login">Acceso Trabajadores</Link>
+                        </Button>
+                        <Button asChild variant="outline">
+                            <Link to="/">Volver al Inicio</Link>
+                        </Button>
+                    </div>
                 </div>
             </header>
 

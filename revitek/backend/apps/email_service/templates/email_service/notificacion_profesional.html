@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Reserva Asignada - Revitek</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 26px;
+            font-weight: 600;
+        }
+        .content {
+            padding: 30px 25px;
+        }
+        .greeting {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .info-box {
+            background-color: #f0f9ff;
+            border-left: 4px solid #2563eb;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-item {
+            margin: 12px 0;
+            font-size: 15px;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #555;
+            display: inline-block;
+            width: 140px;
+        }
+        .info-value {
+            color: #333;
+        }
+        .service-list {
+            background-color: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .service-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+            color: #444;
+        }
+        .service-item:last-child {
+            border-bottom: none;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background-color: #fef3c7;
+            color: #92400e;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin: 10px 0;
+        }
+        .button-container {
+            text-align: center;
+            margin: 25px 0;
+        }
+        .dashboard-button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #2563eb;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .note-box {
+            background-color: #fef9e7;
+            border: 1px solid #f9e79f;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #7d6608;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+            border-top: 1px solid #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📅 Nueva Reserva Asignada</h1>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <div class="greeting">
+                Hola <strong>{{ profesional_nombre }}</strong>,
+            </div>
+
+            <p style="color: #555; line-height: 1.6;">
+                Se te ha asignado una nueva reserva. Por favor revisa los detalles y prepárate para atender al cliente.
+            </p>
+
+            <!-- Status Badge -->
+            <div style="margin: 20px 0;">
+                <span class="status-badge" style="background-color: #d1fae5; color: #065f46;">✅ RESERVA CONFIRMADA</span>
+            </div>
+
+            <!-- Reservation Details -->
+            <div class="info-box">
+                <h3 style="margin-top: 0; color: #2563eb;">👤 Información del Cliente</h3>
+                
+                <div class="info-item">
+                    <span class="info-label">👤 Nombre:</span>
+                    <span class="info-value">{{ cliente_nombre }}</span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">📧 Email:</span>
+                    <span class="info-value">{{ cliente_email }}</span>
+                </div>
+
+                <div class="info-item">
+                    <span class="info-label">📞 Teléfono:</span>
+                    <span class="info-value">{{ cliente_telefono }}</span>
+                </div>
+
+                <div class="info-item">
+                    <span class="info-label">🚗 Vehículo:</span>
+                    <span class="info-value">{{ vehiculo }}</span>
+                </div>
+
+                <div class="info-item">
+                    <span class="info-label">🏠 Dirección:</span>
+                    <span class="info-value">{{ direccion_cliente }}</span>
+                </div>
+            </div>
+
+            <!-- Appointment Details -->
+            <div class="info-box">
+                <h3 style="margin-top: 0; color: #2563eb;">🕐 Detalles de la Cita</h3>
+                
+                <div class="info-item">
+                    <span class="info-label">📅 Fecha:</span>
+                    <span class="info-value"><strong>{{ fecha }}</strong></span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">🕐 Hora:</span>
+                    <span class="info-value"><strong>{{ hora }}</strong></span>
+                </div>
+
+                <div class="info-item">
+                    <span class="info-label">⏱️ Duración Estimada:</span>
+                    <span class="info-value">{{ duracion_total }} minutos</span>
+                </div>
+
+                <div class="info-item">
+                    <span class="info-label">🔢 Reserva N°:</span>
+                    <span class="info-value">#{{ reserva_id }}</span>
+                </div>
+            </div>
+
+            <!-- Services List -->
+            <h3 style="color: #2563eb; margin-top: 25px;">🔧 Servicios a Realizar</h3>
+            <div class="service-list">
+                {% for servicio in servicios %}
+                <div class="service-item">
+                    <strong>{{ servicio.service.name }}</strong>
+                    {% if servicio.service.duration %}
+                    <span style="color: #666; float: right;">{{ servicio.service.duration }} min</span>
+                    {% endif %}
+                    {% if servicio.service.description %}
+                    <div style="color: #888; font-size: 13px; margin-top: 4px;">
+                        {{ servicio.service.description }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Notes Section -->
+            {% if notas %}
+            <div class="note-box">
+                <strong>📝 Notas Adicionales:</strong><br>
+                {{ notas }}
+            </div>
+            {% endif %}
+
+            <!-- Action Button -->
+            <div class="button-container">
+                <a href="{{ dashboard_url }}" class="dashboard-button">
+                    🖥️ Ver en Panel de Control
+                </a>
+            </div>
+
+            <div style="background-color: #d1fae5; padding: 15px; border-radius: 6px; margin-top: 20px; border: 1px solid #6ee7b7;">
+                <p style="margin: 0; font-size: 14px; color: #065f46;">
+                    <strong>✅ Confirmado:</strong> El cliente ha confirmado su asistencia. 
+                    Prepárate para atenderlo en la fecha y hora indicadas.
+                </p>
+            </div>
+
+            <p style="color: #666; font-size: 14px; margin-top: 25px;">
+                Si tienes alguna pregunta sobre esta reserva, contacta al administrador.
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p style="margin: 5px 0;">
+                <strong>Revitek - Sistema de Gestión de Reservas</strong>
+            </p>
+            <p style="margin-top: 15px; color: #999; font-size: 12px;">
+                Este es un correo automático del sistema.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

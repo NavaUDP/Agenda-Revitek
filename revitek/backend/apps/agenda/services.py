@@ -726,28 +726,10 @@ def create_reservation_transaction(validated_data):
                     "phone": (client_data.get("phone") or "").strip(),
                 },
             )
-            if not created:
-                # Actualiza datos básicos si vienen en el payload
-                first_name = (client_data.get("first_name") or "").strip()
-                last_name = (client_data.get("last_name") or "").strip()
-                phone = (client_data.get("phone") or "").strip()
-
-                changed_fields = []
-                if first_name and first_name != client.first_name:
-                    client.first_name = first_name
-                    changed_fields.append("first_name")
-                if last_name and last_name != client.last_name:
-                    # Salvaguarda: No sobrescribir con apellido enmascarado (ej. "P.")
-                    is_masked = last_name.endswith('.') and len(last_name) <= 3 and client.last_name.startswith(last_name[:-1])
-                    if not is_masked:
-                        client.last_name = last_name
-                        changed_fields.append("last_name")
-                if phone and phone != getattr(client, "phone", None):
-                    client.phone = phone
-                    changed_fields.append("phone")
-
-                if changed_fields:
-                    client.save(update_fields=changed_fields)
+            # IMPORTANTE: NO actualizar datos de clientes existentes para prevenir 
+            # sobrescribir información en reservas anteriores. 
+            # Si un cliente necesita actualizar sus datos, debe hacerlo a través 
+            # de su perfil de usuario, no a través de nuevas reservas.
 
         # ----------------------------------------------------------
         # 2) VEHÍCULO (opcional)

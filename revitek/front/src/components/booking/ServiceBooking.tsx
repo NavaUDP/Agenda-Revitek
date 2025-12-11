@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 import { toast } from 'sonner';
-import { format, addDays } from 'date-fns';
+import { format, addDays, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Loader2 } from 'lucide-react';
 
@@ -252,7 +252,7 @@ export function ServiceBooking({ selectedServiceIds, onClose }: ServiceBookingPr
                         <div className="bg-card rounded-lg border border-border p-4 h-full">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="font-semibold">
-                                    Horarios disponibles ({format(new Date(selectedDate), "d 'de' MMMM", { locale: es })})
+                                    Horarios disponibles ({format(parseISO(selectedDate), "d 'de' MMMM", { locale: es })})
                                 </h3>
                                 <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
                             </div>

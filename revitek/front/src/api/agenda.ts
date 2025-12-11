@@ -35,7 +35,7 @@ export async function listSlots(params: {
 // RESERVATIONS
 // ---------------------------
 export async function createReservation(payload: ReservationPayload): Promise<ReservationDetailed> {
-  const { data } = await http.post("/agenda/reservations/", payload);
+  const { data } = await http.post("/agenda/reservations/", payload, { skipAuth: true });
   return data;
 }
 
@@ -72,7 +72,7 @@ export async function completeReservation(id: number, note?: string): Promise<Re
 }
 
 export async function confirmReservation(token: string): Promise<{ detail: string }> {
-  const { data } = await http.get(`/agenda/confirm/${token}/`);
+  const { data } = await http.get(`/agenda/confirm/${token}/`, { skipAuth: true });
   return data;
 }
 
@@ -116,7 +116,7 @@ export async function getAggregatedAvailability(
   const { data } = await http.post("/agenda/availability/", {
     services,
     date,
-  });
+  }, { skipAuth: true });
   return data;
 }
 

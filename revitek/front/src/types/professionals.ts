@@ -17,6 +17,8 @@ export interface ProfessionalPayload {
     last_name?: string;
     email?: string;
     phone?: string;
+    password?: string;
+    create_user_account?: boolean;
     calendar_color?: string;
     bio?: string;
     active?: boolean;

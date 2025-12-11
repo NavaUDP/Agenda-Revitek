@@ -16,12 +16,12 @@ import {
 // REGIONES Y COMUNAS
 // ============================
 export async function listRegions(): Promise<Region[]> {
-    const res = await api.get("/clients/regions/");
+    const res = await api.get("/clients/regions/", { skipAuth: true });
     return res.data;
 }
 
 export async function listCommunes(): Promise<Commune[]> {
-    const res = await api.get("/clients/communes/");
+    const res = await api.get("/clients/communes/", { skipAuth: true });
     return res.data;
 }
 
@@ -45,7 +45,7 @@ export async function getMyUser(): Promise<User> {
 }
 
 export async function lookupClient(params: { email?: string; phone?: string }): Promise<LookupResult> {
-    const res = await api.get("/clients/users/lookup/", { params });
+    const res = await api.get("/clients/users/lookup/", { params, skipAuth: true });
     return res.data;
 }
 

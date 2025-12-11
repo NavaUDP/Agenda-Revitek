@@ -17,6 +17,8 @@ import AdminAssignmentsPage from '../pages/AdminAssignmentsPage';
 import ProfessionalEditPage from '../pages/ProfessionalEditPage';
 import ConfirmReservationPage from '../pages/ConfirmReservationPage';
 import ReservationsPage from '../pages/ReservationsPage';
+import ProfessionalAgendaPage from '../pages/ProfessionalAgendaPage';
+import { ProfessionalLayout } from '../layouts/ProfessionalLayout';
 import NotFound from '../pages/NotFound';
 
 export function AppRoutes() {
@@ -60,6 +62,18 @@ export function AppRoutes() {
         <Route path="asignaciones" element={<AdminAssignmentsPage />} />
         <Route path="reservas" element={<ReservationsPage />} />
       </Route>
+
+      {/* --- RUTA ESPECÍFICA PARA PROFESIONALES --- */}
+      <Route
+        path="/profesional"
+        element={
+          <ProtectedRoute>
+            <ProfessionalLayout>
+              <ProfessionalAgendaPage />
+            </ProfessionalLayout>
+          </ProtectedRoute>
+        }
+      />
 
       {/* --- RUTA PARA PÁGINAS NO ENCONTRADAS --- */}
       <Route path="*" element={<NotFound />} />

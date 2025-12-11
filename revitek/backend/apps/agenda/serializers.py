@@ -57,15 +57,49 @@ class ProfessionalAdminSerializer(ProfessionalSerializer):
     """
     has_user = serializers.SerializerMethodField()
     user_email = serializers.SerializerMethodField()
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    create_user_account = serializers.BooleanField(write_only=True, default=True, required=False)
 
     class Meta(ProfessionalSerializer.Meta):
-        fields = ProfessionalSerializer.Meta.fields + ["has_user", "user_email"]
+        fields = ProfessionalSerializer.Meta.fields + ["has_user", "user_email", "password", "create_user_account"]
 
     def get_has_user(self, obj):
         return obj.user is not None
 
     def get_user_email(self, obj):
         return obj.user.email if obj.user else None
+    
+    def create(self, validated_data):
+        password = validated_data.pop('password', None)
+        create_user_account = validated_data.pop('create_user_account', True)
+        
+        # Crear el profesional
+        professional = super().create(validated_data)
+        
+        # Crear cuenta de usuario automáticamente si se solicita y hay email
+        if create_user_account and professional.email and password:
+            email = professional.email.strip().lower()
+            
+            # Verificar si ya existe un usuario con ese email
+            existing_user = User.objects.filter(email=email).first()
+            
+            if existing_user:
+                # Si existe, vincular al profesional
+                professional.user = existing_user
+                professional.save()
+            else:
+                # Crear nuevo usuario
+                user = User.objects.create_user(
+                    email=email,
+                    password=password,
+                    first_name=professional.first_name,
+                    last_name=professional.last_name,
+                    phone=professional.phone or ""
+                )
+                professional.user = user
+                professional.save()
+        
+        return professional
 
 
 class ProfessionalServiceSerializer(serializers.ModelSerializer):

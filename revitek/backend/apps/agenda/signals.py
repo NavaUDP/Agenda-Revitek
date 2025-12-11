@@ -1,13 +1,15 @@
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from .models import Reservation
-from apps.whatsapp.services import MetaClient
 import threading
+import logging
+
+logger = logging.getLogger(__name__)
 
 @receiver(pre_save, sender=Reservation)
 def track_status_change(sender, instance, **kwargs):
     """
-    Rastrear si el estado cambia a CONFIRMED.
+    Rastrear el estado anterior de la reserva antes de guardar.
     """
     if instance.pk:
         try:
@@ -19,9 +21,15 @@ def track_status_change(sender, instance, **kwargs):
         instance._old_status = None
 
 @receiver(post_save, sender=Reservation)
-def trigger_whatsapp_notifications(sender, instance, created, **kwargs):
+def trigger_email_notifications(sender, instance, created, **kwargs):
     """
-    Disparar notificaciones de WhatsApp basadas en cambios de estado.
+    Disparar notificaciones por email basadas en el estado de la reserva:
+    
+    1. NUEVA RESERVA (created=True): 
+       - Enviar email al cliente con link de confirmación
+       
+    2. CLIENTE CONFIRMA (WAITING_CLIENT -> CONFIRMED):
+       - Enviar email al profesional notificando la reserva confirmada
     """
     import uuid
     from datetime import timedelta
@@ -29,55 +37,79 @@ def trigger_whatsapp_notifications(sender, instance, created, **kwargs):
     
     old_status = getattr(instance, '_old_status', None)
     
-    print(f"🔔 Signal triggered - Old: {old_status}, New: {instance.status}, ID: {instance.id}")
+    print(f"\n{'='*60}")
+    print(f"🔔 SIGNAL TRIGGERED - Reservation #{instance.id}")
+    print(f"   Created: {created} | Old Status: {old_status} | New Status: {instance.status}")
+    print(f"{'='*60}\n")
     
-    # Omitir si esta confirmación vino del enlace (para prevenir bucle)
-    if getattr(instance, '_confirmed_via_link', False):
-        print(f"⏭️  Confirmación vía link - no se envía mensaje duplicado")
-        return
+    logger.info(f"🔔 Signal triggered - Created: {created}, Old: {old_status}, New: {instance.status}, ID: {instance.id}")
     
-    # Admin aprueba: Generar token y enviar enlace manteniendo estado PENDING
-    # El token se genera solo una vez (cuando previamente no había token)
-    if instance.status == 'PENDING' and not instance.confirmation_token and old_status == 'PENDING':
-        # Esto significa que el admin acaba de aprobar (primera vez viendo PENDING después de actualización)
-        # Detectamos esto verificando si la reserva fue actualizada por el admin
-        # Por simplicidad, enviaremos enlace cuando updated_at cambie significativamente
-        pass  # Omitir por ahora - necesitamos un enfoque diferente
+    # Flag especial para confirmación vía link
+    confirmed_via_link = getattr(instance, '_confirmed_via_link', False)
     
-    # Mejor enfoque: Enviar enlace cuando se solicite explícitamente vía campo personalizado o acción
-    # Por ahora, disparemos en cambio de estado a CONFIRMED
-    if old_status == 'PENDING' and instance.status == 'CONFIRMED':
-        print(f"✅ Admin aprobó - generando token y esperando confirmación del cliente...")
+    # CASO 1: Nueva reserva - Enviar email al cliente SOLAMENTE
+    if created and instance.status == 'PENDING' and not confirmed_via_link:
+        print("📧 ✅ CONDICIÓN CUMPLIDA: Nueva reserva creada - enviando email al cliente...")
+        logger.info(f"📧 Nueva reserva creada - enviando email de confirmación al cliente...")
         
-        # Cambiar estado a WAITING_CLIENT
-        instance.status = 'WAITING_CLIENT'
-        
-        def send_confirmation_link():
+        def send_client_email():
             try:
-                # Generar token único
+                from apps.email_service.services import send_confirmacion_cliente
+                
+                # 1. Generar token único
                 token = uuid.uuid4()
-                expiration = timezone.now() + timedelta(hours=2)
+                expiration = timezone.now() + timedelta(hours=48)  # 48 horas para confirmar
                 
-                print(f"🔑 Token generado: {token}")
+                logger.info(f"🔑 Token generado: {token}")
                 
-                # Guardar token en reserva y actualizar estado
+                # 2. Guardar token en reserva y cambiar estado a WAITING_CLIENT
                 instance.confirmation_token = token
                 instance.token_expires_at = expiration
+                instance.status = 'WAITING_CLIENT'
                 instance.save(update_fields=['confirmation_token', 'token_expires_at', 'status'])
                 
-                print(f"💾 Token guardado - estado: {instance.status}")
+                logger.info(f"💾 Token guardado - estado: {instance.status}")
                 
-                # Enviar WhatsApp con enlace
-                client = MetaClient()
-                result = client.send_confirmation_link(instance, token)
-                print(f"📱 WhatsApp enviado: {result}")
+                # 3. Enviar email al cliente con link de confirmación
+                result_cliente = send_confirmacion_cliente(instance, token)
+                logger.info(f"📧 Email al cliente enviado: {result_cliente}")
+                
             except Exception as e:
-                print(f"❌ Error sending WhatsApp confirmation link: {e}")
+                logger.error(f"❌ Error sending client email: {e}")
                 import traceback
                 traceback.print_exc()
         
-        threading.Thread(target=send_confirmation_link).start()
+        # Ejecutar en thread separado para no bloquear la respuesta HTTP
+        threading.Thread(target=send_client_email).start()
+    
+    # CASO 2: Cliente confirmó - Enviar email al profesional
+    # Esto incluye confirmaciones vía link (confirmed_via_link=True)
+    elif old_status == 'WAITING_CLIENT' and instance.status == 'CONFIRMED':
+        print("✅ ✅ CONDICIÓN CUMPLIDA: Cliente confirmó - enviando email al profesional...")
+        logger.info(f"✅ Cliente confirmó reserva - enviando email al profesional...")
+        
+        if confirmed_via_link:
+            print("   (Confirmación realizada vía link de email)")
+            logger.info("   Confirmación vía link - enviando notificación al profesional")
+        
+        def send_professional_email():
+            try:
+                from apps.email_service.services import send_notificacion_profesional
+                
+                # Enviar email al profesional asignado
+                result_profesional = send_notificacion_profesional(instance)
+                logger.info(f"📧 Email al profesional enviado: {result_profesional}")
+                
+            except Exception as e:
+                logger.error(f"❌ Error sending professional email: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        # Ejecutar en thread separado
+        threading.Thread(target=send_professional_email).start()
     else:
-        print(f"⏭️  No se envía link (condición no cumplida)")
+        print(f"⏭️  ❌ NO SE ENVÍAN EMAILS - Condición no cumplida")
+        print(f"   Created: {created}, Old: {old_status}, New: {instance.status}")
+        logger.info(f"⏭️  No se envían emails (condición no cumplida - Created: {created}, Old: {old_status}, New: {instance.status})")
 
 

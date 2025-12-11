@@ -13,7 +13,7 @@ import {
 ============================================================ */
 
 export async function listAllServices(params?: { include_inactive?: boolean }): Promise<Service[]> {
-  const { data } = await http.get("/catalog/services/", { params });
+  const { data } = await http.get("/catalog/services/", { params, skipAuth: true });
   return data;
 }
 
@@ -21,7 +21,7 @@ export async function listAllServices(params?: { include_inactive?: boolean }): 
 export const listServices = listAllServices;
 
 export async function listCategories(): Promise<Category[]> {
-  const { data } = await http.get("/catalog/categories/");
+  const { data } = await http.get("/catalog/categories/", { skipAuth: true });
   return data;
 }
 

@@ -1,6 +1,13 @@
 // navaudp/agenda-revitek/Agenda-Revitek-Nava/revitek/front/src/api/http.ts
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
+// Extensión del tipo de configuración para incluir skipAuth
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    skipAuth?: boolean;
+  }
+}
+
 // --- URLS de la API ---
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const REFRESH_URL = "/api/auth/token/refresh/";
@@ -12,9 +19,14 @@ const http = axios.create({
 });
 
 // --- Interceptor de Solicitud (Request) ---
-// (Esta es la sección corregida)
+// Solo agrega token si la petición no está marcada como skipAuth
 http.interceptors.request.use(
   (config) => {
+    // Si la petición está marcada como skipAuth, no agregamos el token
+    if (config.skipAuth) {
+      return config;
+    }
+    
     try {
       const token = localStorage.getItem('access_token');
       if (token && config.headers) {
@@ -76,8 +88,10 @@ http.interceptors.response.use(
     
     // --- Lógica de 401 (Token Expirado) ---
     // Verificamos si es un 401, si no es un reintento, y si no es la propia URL de login o refresh.
+    // IMPORTANTE: Si la petición está marcada como skipAuth, no intentamos refrescar token ni redirigir
     if (error.response.status === 401 && 
         !originalRequest._retry && 
+        !originalRequest.skipAuth &&
         originalRequest.url !== REFRESH_URL &&
         originalRequest.url !== LOGIN_URL) {
       

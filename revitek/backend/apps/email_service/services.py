@@ -67,6 +67,132 @@ def send_email(subject, template_name, context, recipient_list, email_type="gene
 
 # --- Funciones Específicas ---
 
+def send_confirmacion_cliente(reserva, confirmation_token):
+    """
+    Envía email al cliente con el link de confirmación de reserva.
+    """
+    from django.conf import settings
+    
+    # Obtener el primer slot para la fecha/hora
+    first_slot = reserva.reservation_slots.select_related('slot', 'professional').order_by('slot__start').first()
+    
+    if not first_slot:
+        logger.error(f"Reservation {reserva.id} has no slots")
+        return False
+    
+    # Formatear fecha y hora
+    fecha = first_slot.slot.start.strftime('%d de %B de %Y')
+    hora = first_slot.slot.start.strftime('%H:%M')
+    
+    # Construir link de confirmación
+    frontend_url = settings.FRONTEND_URL
+    confirmation_link = f"{frontend_url}/confirmar/{confirmation_token}"
+    
+    # Obtener información del vehículo
+    vehiculo_info = "No especificado"
+    if reserva.vehicle:
+        vehiculo_info = f"{reserva.vehicle.brand} {reserva.vehicle.model} ({reserva.vehicle.year}) - Patente: {reserva.vehicle.license_plate}"
+    
+    # Calcular duración total
+    duracion_total = sum(s.service.duration_min for s in reserva.services.all() if s.service.duration_min)
+    
+    context = {
+        'cliente_nombre': reserva.client.first_name,
+        'cliente_telefono': reserva.client.phone or 'No especificado',
+        'fecha': fecha,
+        'hora': hora,
+        'profesional_nombre': f"{first_slot.professional.first_name} {first_slot.professional.last_name}".strip() if first_slot.professional else 'Por asignar',
+        'vehiculo': vehiculo_info,
+        'servicios': reserva.services.all(),
+        'confirmation_link': confirmation_link,
+        'frontend_url': frontend_url,
+        'telefono_taller': '+56 9 XXXX XXXX',  # TODO: Configurar en settings
+        'direccion_taller': 'Dirección del Taller',  # TODO: Configurar en settings
+    }
+    
+    subject = f"✅ Confirma tu Reserva #{reserva.id} - Revitek"
+    
+    return send_email(
+        subject=subject,
+        template_name='email_service/confirmacion_cliente.html',
+        context=context,
+        recipient_list=[reserva.client.email],
+        email_type='confirmacion_cliente'
+    )
+
+
+def send_notificacion_profesional(reserva):
+    """
+    Envía email al profesional asignado informando de la nueva reserva.
+    """
+    from django.conf import settings
+    
+    # Cargar relaciones necesarias
+    if reserva.address:
+        reserva.address = type(reserva.address).objects.select_related('commune__region').get(pk=reserva.address.pk)
+    
+    # Obtener el primer slot y profesional
+    first_slot = reserva.reservation_slots.select_related('slot', 'professional').order_by('slot__start').first()
+    
+    if not first_slot or not first_slot.professional:
+        logger.error(f"Reservation {reserva.id} has no professional assigned")
+        return False
+    
+    profesional = first_slot.professional
+    
+    # Verificar que el profesional tenga email
+    if not profesional.email:
+        logger.warning(f"Professional {profesional.id} has no email address")
+        return False
+    
+    # Formatear fecha y hora
+    fecha = first_slot.slot.start.strftime('%d de %B de %Y')
+    hora = first_slot.slot.start.strftime('%H:%M')
+    
+    # Obtener información del vehículo
+    vehiculo_info = "No especificado"
+    if reserva.vehicle:
+        vehiculo_info = f"{reserva.vehicle.brand} {reserva.vehicle.model} ({reserva.vehicle.year}) - Patente: {reserva.vehicle.license_plate}"
+    
+    # Obtener dirección completa del cliente
+    direccion_cliente = "No especificada"
+    if reserva.address:
+        direccion_cliente = f"{reserva.address.street} {reserva.address.number}, {reserva.address.commune.name}, {reserva.address.commune.region.name}"
+    
+    # Calcular duración total
+    duracion_total = sum(s.service.duration_min for s in reserva.services.all() if s.service.duration_min)
+    
+    # URL del dashboard
+    frontend_url = settings.FRONTEND_URL
+    dashboard_url = f"{frontend_url}/profesional"
+    
+    context = {
+        'profesional_nombre': f"{profesional.first_name} {profesional.last_name}".strip(),
+        'cliente_nombre': f"{reserva.client.first_name} {reserva.client.last_name}".strip(),
+        'cliente_email': reserva.client.email,
+        'cliente_telefono': reserva.client.phone or 'No especificado',
+        'vehiculo': vehiculo_info,
+        'direccion_cliente': direccion_cliente,
+        'fecha': fecha,
+        'hora': hora,
+        'duracion_total': duracion_total,
+        'reserva_id': reserva.id,
+        'servicios': reserva.services.all(),
+        'notas': reserva.note or '',
+        'dashboard_url': dashboard_url,
+    }
+    
+    subject = f"📅 Nueva Reserva Asignada #{reserva.id} - Revitek"
+    
+    return send_email(
+        subject=subject,
+        template_name='email_service/notificacion_profesional.html',
+        context=context,
+        recipient_list=[profesional.email],
+        email_type='notificacion_profesional'
+    )
+
+
 def send_reserva_confirmada(reserva):
     subject = f"Confirmación de Reserva #{reserva.id} - Revitek"
     context = {

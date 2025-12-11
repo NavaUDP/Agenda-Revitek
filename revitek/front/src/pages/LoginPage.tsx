@@ -21,9 +21,7 @@ export const LoginPage = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isAuthenticated } = useAuth();
-
-  const from = location.state?.from?.pathname || '/admin/agenda';
+  const { login, isAuthenticated, user } = useAuth();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -34,10 +32,29 @@ export const LoginPage = () => {
   });
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate(from, { replace: true });
+    if (isAuthenticated && user) {
+      const from = location.state?.from?.pathname;
+      
+      // Si viene de una ruta específica, redirigir ahí
+      if (from && from !== '/login') {
+        navigate(from, { replace: true });
+        return;
+      }
+
+      // Si es admin (is_staff), redirigir a la agenda de admin
+      if (user.is_staff) {
+        navigate('/admin/agenda', { replace: true });
+      } 
+      // Si es profesional (tiene professional_id pero no es admin), redirigir a su vista
+      else if (user.professional_id) {
+        navigate('/profesional', { replace: true });
+      }
+      // Por defecto, redirigir a agenda de admin
+      else {
+        navigate('/admin/agenda', { replace: true });
+      }
     }
-  }, [isAuthenticated, navigate, from]);
+  }, [isAuthenticated, user, navigate, location]);
 
   const onSubmit = async (values: LoginFormValues) => {
     setIsLoggingIn(true);

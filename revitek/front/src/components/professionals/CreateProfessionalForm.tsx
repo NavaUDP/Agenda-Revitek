@@ -17,6 +17,8 @@ const createProfessionalSchema = z.object({
     last_name: z.string().min(2, "El apellido es requerido"),
     email: z.string().email("Email inválido").optional().or(z.literal("")),
     phone: z.string().optional(),
+    password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres").optional().or(z.literal("")),
+    create_user_account: z.boolean().default(true),
     calendar_color: z.string().optional(),
     bio: z.string().max(2000, "La biografía es muy larga").optional(),
 });
@@ -35,6 +37,8 @@ export default function CreateProfessionalForm({ onSuccess }: CreateProfessional
             last_name: "",
             email: "",
             phone: "",
+            password: "",
+            create_user_account: true,
             calendar_color: "#3b82f6",
             bio: "",
         },
@@ -48,6 +52,8 @@ export default function CreateProfessionalForm({ onSuccess }: CreateProfessional
                 last_name: values.last_name,
                 email: values.email || undefined,
                 phone: values.phone ? (values.phone.startsWith('56') ? values.phone : `56${values.phone}`) : undefined,
+                password: values.password || undefined,
+                create_user_account: values.create_user_account,
                 calendar_color: values.calendar_color,
                 bio: values.bio || undefined,
                 active: true,
@@ -55,7 +61,13 @@ export default function CreateProfessionalForm({ onSuccess }: CreateProfessional
             };
 
             const newProfessional = await createProfessional(payload);
-            toast.success("Profesional creado exitosamente");
+            
+            if (values.create_user_account && values.email && values.password) {
+                toast.success("Profesional y cuenta de acceso creados exitosamente");
+            } else {
+                toast.success("Profesional creado exitosamente");
+            }
+            
             form.reset();
             onSuccess(newProfessional);
         } catch (error) {
@@ -111,10 +123,31 @@ export default function CreateProfessionalForm({ onSuccess }: CreateProfessional
                             name="email"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Email</FormLabel>
+                                    <FormLabel>Email (Requerido para cuenta de acceso)</FormLabel>
                                     <FormControl>
                                         <Input type="email" placeholder="juan@ejemplo.com" {...field} />
                                     </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="password"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Contraseña de Acceso (Opcional)</FormLabel>
+                                    <FormControl>
+                                        <Input 
+                                            type="password" 
+                                            placeholder="Mínimo 6 caracteres" 
+                                            {...field} 
+                                        />
+                                    </FormControl>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Si proporcionas email y contraseña, se creará automáticamente una cuenta de acceso al sistema.
+                                    </p>
                                     <FormMessage />
                                 </FormItem>
                             )}
